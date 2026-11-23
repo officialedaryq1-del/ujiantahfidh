@@ -1,0 +1,1810 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi E-Tahfidh</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS untuk membaca & membuat file Excel (.xlsx/.xls) langsung di browser -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <!-- Supabase JS SDK v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .dynamic-row:nth-child(even) { background-color: #f8fafc; }
+        select { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1em; }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .loading-shimmer { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        @media print {
+            body * { visibility: hidden; }
+            #printArea, #printArea * { visibility: visible; }
+            #printArea { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; box-shadow: none; background: white; }
+            @page { size: A4 portrait; margin: 15mm; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+
+    <div class="max-w-[1400px] mx-auto p-4 md:p-8">
+        
+        <!-- Header & Navigasi -->
+        <div class="bg-emerald-900 rounded-t-3xl shadow-xl overflow-hidden">
+            <div class="p-8 text-white flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h1 class="text-3xl font-black tracking-tight">E-Tahfidh Management</h1>
+                    <p class="text-emerald-200 opacity-90 mt-1 text-sm font-medium">Sistem Input Nilai & Rapor Otomatis (Supabase Cloud)</p>
+                </div>
+                <div class="bg-emerald-800/50 px-4 py-2 rounded-xl flex items-center gap-3 border border-emerald-700/50">
+                    <div id="onlineStatus" class="w-3 h-3 rounded-full bg-slate-400"></div>
+                    <span id="onlineText" class="text-xs font-bold uppercase tracking-wider text-emerald-100">Menghubungkan Supabase...</span>
+                </div>
+            </div>
+            
+            <div class="flex overflow-x-auto custom-scrollbar px-4 pt-2 gap-2 border-t border-emerald-800/50">
+                <button id="tabSetup" class="px-6 py-4 font-semibold text-emerald-50 border-b-4 border-emerald-400 transition-all whitespace-nowrap">📝 Data Ujian</button>
+                <button id="tabInput" class="px-6 py-4 font-semibold text-emerald-200 border-b-4 border-transparent hover:text-white transition-all whitespace-nowrap">✍️ Input Nilai</button>
+                <button id="tabRapor" class="px-6 py-4 font-semibold text-emerald-200 border-b-4 border-transparent hover:text-white transition-all whitespace-nowrap">📊 Data Rapor</button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-b-3xl shadow-2xl p-6 md:p-8 min-h-[600px] border-x border-b border-slate-200">
+            
+            <!-- Peringatan jika Supabase belum dikonfigurasi -->
+            <div id="configWarning" class="hidden mb-6 bg-amber-50 border border-amber-300 text-amber-900 p-4 rounded-2xl text-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <b class="block text-amber-800">⚠️ Koneksi Supabase Belum Diisi</b>
+                    <span>Buka file <code>index.html</code> dan isi <code>SUPABASE_URL</code> serta <code>SUPABASE_ANON_KEY</code> sesuai panduan deploy.</span>
+                </div>
+            </div>
+
+            <!-- SECTION 1: DATA UJIAN (SETUP) -->
+            <div id="sectionSetup" class="block">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">Database Ujian Santri</h2>
+                        <p class="text-sm text-slate-500">Atur target hafalan yang akan diujikan per santri di sini.</p>
+                    </div>
+                </div>
+
+                <form id="setupForm" class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Nomor Ujian (ID / NISQ)</label>
+                            <input type="text" id="setupIdSantri" required placeholder="Cth: 23.00864" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Nama Santri</label>
+                            <input type="text" id="setupNamaSantri" required placeholder="Nama Lengkap Santri" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Detail Info -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 border-b border-slate-200 pb-6">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Tahun Pelajaran</label>
+                            <input type="text" id="setupThnPelajaran" placeholder="Misal: 2025/2026 M." class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Semester</label>
+                            <select id="setupSemester" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm font-bold bg-white">
+                                <option value="GENAP">GENAP</option>
+                                <option value="GANJIL">GANJIL</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Kelas</label>
+                            <input type="text" id="setupKelas" placeholder="Misal: 9C" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Wali Halaqoh</label>
+                            <input type="text" id="setupWaliHalaqoh" placeholder="Nama Wali Halaqoh" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Tempat</label>
+                            <input type="text" id="setupTempat" placeholder="Tempat Ujian" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Majlis</label>
+                            <input type="text" id="setupMajlis" placeholder="Nama Majlis" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Status</label>
+                            <input type="text" id="setupStatus" placeholder="Status Santri" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Kamar</label>
+                            <input type="text" id="setupKamar" placeholder="Kamar / Asrama" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm">
+                        </div>
+                    </div>
+                    
+                    <!-- Target Hafalan -->
+                    <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+                        <div class="col-span-2 bg-blue-50 p-3 rounded-xl border border-blue-100">
+                            <label class="block text-[10px] font-bold text-blue-800 uppercase mb-2">Batas Ziadah</label>
+                            <div class="flex gap-2">
+                                <input type="number" id="setupBatasZiadahJuz" placeholder="Juz" class="w-full p-2 border border-blue-200 rounded-lg outline-none text-sm">
+                                <input type="text" id="setupBatasZiadahPojok" placeholder="Pojok" class="w-full p-2 border border-blue-200 rounded-lg outline-none text-sm">
+                            </div>
+                        </div>
+                        <div class="col-span-2 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                            <label class="block text-[10px] font-bold text-emerald-800 uppercase mb-2">Awal Baca (Materi)</label>
+                            <div class="flex gap-2">
+                                <input type="number" id="setupJuzAwal" required placeholder="Juz" class="w-full p-2 border border-emerald-200 rounded-lg outline-none text-sm font-bold">
+                                <input type="text" id="setupPojokAwal" required placeholder="Pojok" class="w-full p-2 border border-emerald-200 rounded-lg outline-none text-sm font-bold">
+                            </div>
+                        </div>
+                        <div class="col-span-2 bg-orange-50 p-3 rounded-xl border border-orange-100">
+                            <label class="block text-[10px] font-bold text-orange-800 uppercase mb-2">Akhir Baca (Materi)</label>
+                            <div class="flex gap-2">
+                                <input type="number" id="setupJuzAkhir" required placeholder="Juz" class="w-full p-2 border border-orange-200 rounded-lg outline-none text-sm font-bold">
+                                <input type="text" id="setupPojokAkhir" required placeholder="Pojok" class="w-full p-2 border border-orange-200 rounded-lg outline-none text-sm font-bold">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col lg:flex-row justify-between items-center pt-4 border-t border-slate-200 gap-4">
+                        <div class="flex flex-col xl:flex-row items-center gap-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 w-full lg:w-auto flex-1">
+                            <div class="flex-1 w-full">
+                                <div class="flex justify-between items-center mb-1 gap-2">
+                                    <span class="text-xs text-emerald-800 font-bold uppercase tracking-wider whitespace-nowrap">Upload Massal (CSV)</span>
+                                    <button type="button" id="btnDownloadTemplate" class="text-[10px] bg-white border border-emerald-300 hover:bg-emerald-200 text-emerald-800 px-3 py-1.5 rounded-lg transition-colors font-bold shadow-sm flex items-center gap-1.5 whitespace-nowrap">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                        Template CSV
+                                    </button>
+                                </div>
+                                <span class="block text-[10px] text-emerald-600 font-normal mt-1.5 normal-case leading-tight">Format: No. Ujian, Nama, Tahun, Semester, Batas Jz, Batas Pk, Awal Jz, Awal Pk, Akhir Jz, Akhir Pk, Tempat, Majlis, Kelas, Status, Kamar, Wali</span>
+                            </div>
+                            <div class="flex w-full xl:w-auto gap-2 items-center">
+                                <input type="file" id="csvFileInput" accept=".csv" class="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 bg-white border border-emerald-200 rounded-lg p-1 w-full xl:w-48">
+                                <button type="button" id="btnUploadCsv" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm whitespace-nowrap">Upload</button>
+                            </div>
+                        </div>
+
+                        <button type="submit" id="btnSimpanSetup" class="w-full lg:w-auto bg-slate-900 hover:bg-slate-800 text-white px-8 py-3.5 rounded-xl font-bold transition shadow-lg disabled:opacity-50">
+                            Simpan Data Ujian
+                        </button>
+                    </div>
+                </form>
+
+                <div class="overflow-x-auto border border-slate-200 rounded-2xl shadow-sm custom-scrollbar">
+                    <table class="w-full text-left border-collapse min-w-[1200px]">
+                        <thead class="bg-slate-100 text-slate-600 text-xs uppercase tracking-wider">
+                            <tr>
+                                <th class="p-4 border-b border-slate-200">No. Ujian</th>
+                                <th class="p-4 border-b border-slate-200">Nama Santri</th>
+                                <th class="p-4 border-b border-slate-200">Thn / Smt</th>
+                                <th class="p-4 border-b border-slate-200 bg-blue-50/50">Batas Ziadah</th>
+                                <th class="p-4 border-b border-slate-200 bg-emerald-50/50">Awal Baca</th>
+                                <th class="p-4 border-b border-slate-200 bg-orange-50/50">Akhir Baca</th>
+                                <th class="p-4 border-b border-slate-200">Keterangan Lain</th>
+                                <th class="p-4 border-b border-slate-200 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="setupTableBody" class="text-sm">
+                            <tr><td colspan="8" class="text-center p-8 text-slate-400 italic">Memuat data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTION 2: INPUT NILAI TAHFIDH LENGKAP -->
+            <form id="tahfidhForm" class="hidden space-y-8">
+                <!-- PANEL IMPORT EXCEL (SHEET MAILING) -->
+                <div class="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 rounded-2xl border border-emerald-200 shadow-sm space-y-4">
+                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider">Excel Import</span>
+                                <h3 class="text-base font-bold text-emerald-950">Import Nilai dari Excel (Sheet <code class="bg-white px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-700">mailing</code>)</h3>
+                            </div>
+                            <p class="text-xs text-emerald-800/80 mt-1">Upload file <b>.xlsx / .xls</b> langsung. Sistem otomatis mencari sheet <b>mailing</b> dan menggabungkan (merge) nilai santri ke Supabase.</p>
+                        </div>
+                        <button type="button" id="btnDownloadNilaiTemplate" class="text-xs bg-white border border-emerald-300 hover:bg-emerald-100 text-emerald-800 px-4 py-2.5 rounded-xl transition font-bold shadow-sm flex items-center gap-2 whitespace-nowrap">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            Download Template Excel (.xlsx)
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center bg-white p-3.5 rounded-xl border border-emerald-100">
+                        <div class="md:col-span-5">
+                            <input type="file" id="excelNilaiInput" accept=".xlsx,.xls,.csv" class="text-xs file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 w-full cursor-pointer">
+                        </div>
+                        <div class="md:col-span-4">
+                            <select id="excelSheetSelect" disabled class="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-bold bg-slate-50 text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500">
+                                <option value="">- Pilih file Excel dulu -</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-3">
+                            <button type="button" id="btnImportExcelNilai" disabled class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg text-xs font-bold transition shadow-sm">
+                                Import ke Supabase
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Preview Hasil Pembacaan Sheet -->
+                    <div id="excelPreviewBox" class="hidden space-y-3 bg-white p-4 rounded-xl border border-emerald-200">
+                        <div class="flex flex-wrap justify-between items-center gap-2">
+                            <div class="text-xs font-bold text-slate-700" id="excelPreviewSummary">Terdeteksi 0 baris santri.</div>
+                            <span id="excelDetectedColsBadge" class="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-md font-semibold"></span>
+                        </div>
+                        <div class="overflow-x-auto custom-scrollbar max-h-48 border border-slate-100 rounded-lg">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-100 text-slate-600 sticky top-0">
+                                    <tr>
+                                        <th class="p-2 border-b">NISQ / ID</th>
+                                        <th class="p-2 border-b">Nama Santri</th>
+                                        <th class="p-2 border-b">Kelas</th>
+                                        <th class="p-2 border-b">Juz Terdeteksi</th>
+                                        <th class="p-2 border-b">Yanbu'a</th>
+                                        <th class="p-2 border-b">Akhlak</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="excelPreviewBody"></tbody>
+                            </table>
+                        </div>
+                        <!-- Progress Bar Import -->
+                        <div id="excelImportProgressWrap" class="hidden space-y-1">
+                            <div class="flex justify-between text-[11px] font-bold text-emerald-700">
+                                <span id="excelProgressText">Mengimpor data...</span>
+                                <span id="excelProgressPercent">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                <div id="excelProgressBar" class="bg-emerald-600 h-2 rounded-full transition-all duration-200" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Identitas -->
+                <div class="space-y-6 bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 border-b pb-6 border-slate-200">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Nomor Peserta (NISQ)</label>
+                            <input type="text" id="nomorPeserta" name="idSantri" required placeholder="Ketik ID (misal: 23.00864)" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none transition-all bg-white font-bold">
+                            <p id="statusMencari" class="hidden text-[10px] mt-1 text-blue-600 animate-pulse italic">Mencari & Memuat Data Terakhir...</p>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Nama Lengkap Santri</label>
+                            <input type="text" id="namaSantri" name="nama" readonly placeholder="Nama otomatis muncul..." class="w-full p-3 border border-slate-200 rounded-xl bg-slate-100 outline-none transition-all font-semibold text-slate-600 cursor-not-allowed">
+                        </div>
+                    </div>
+
+                    <!-- Range Juz Setup Utama -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+                        <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                            <label class="block text-[10px] font-bold text-emerald-800 uppercase mb-1">Materi Ujian - Juz Awal</label>
+                            <input type="number" id="juzAwal" name="juzAwal" min="1" max="30" required placeholder="0" class="w-full bg-transparent p-1 border-b-2 border-emerald-200 focus:border-emerald-600 outline-none text-lg font-bold">
+                        </div>
+                        <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                            <label class="block text-[10px] font-bold text-emerald-800 uppercase mb-1">Materi - Pojok Awal</label>
+                            <input type="text" id="pojokAwal" name="pojokAwal" required placeholder="0" class="w-full bg-transparent p-1 border-b-2 border-emerald-200 focus:border-emerald-600 outline-none text-lg font-bold">
+                        </div>
+                        <div class="bg-orange-50 p-3 rounded-xl border border-orange-100">
+                            <label class="block text-[10px] font-bold text-orange-800 uppercase mb-1">Materi - Juz Akhir</label>
+                            <input type="number" id="juzAkhir" name="juzAkhir" min="1" max="30" required placeholder="0" class="w-full bg-transparent p-1 border-b-2 border-orange-200 focus:border-orange-600 outline-none text-lg font-bold">
+                        </div>
+                        <div class="bg-orange-50 p-3 rounded-xl border border-orange-100">
+                            <label class="block text-[10px] font-bold text-orange-800 uppercase mb-1">Materi - Pojok Akhir</label>
+                            <input type="text" id="pojokAkhir" name="pojokAkhir" required placeholder="0" class="w-full bg-transparent p-1 border-b-2 border-orange-200 focus:border-orange-600 outline-none text-lg font-bold">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                    <!-- SEKSI A: Tahfidh & Capaian -->
+                    <div class="space-y-6">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-full flex flex-col">
+                            <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">A. Ujian Tahfidh & Hasil Terbaca</h3>
+                            
+                            <!-- Tabel Input Nilai -->
+                            <div id="tableSection" class="hidden overflow-x-auto custom-scrollbar border border-slate-200 rounded-xl shadow-inner mb-6 max-h-[400px] flex-1">
+                                <table class="w-full text-left border-collapse min-w-[700px]">
+                                    <thead class="bg-slate-800 text-white text-[10px] uppercase tracking-wider sticky top-0 z-10">
+                                        <tr>
+                                            <th class="p-3 text-center">Juz</th>
+                                            <th class="p-3">Nilai (Angka)</th>
+                                            <th class="p-3">Keterangan</th>
+                                            <th class="p-3">Tilawah (A-K)</th>
+                                            <th class="p-3">Tajwid (A-K)</th>
+                                            <th class="p-3">Makhroj (A-K)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="juzRowsContainer"></tbody>
+                                </table>
+                            </div>
+
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                                <h4 class="text-xs font-bold text-slate-600">Hasil Hafalan Terbaca</h4>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="flex gap-2">
+                                        <input type="number" id="hasilMulaiJuz" placeholder="Mulai Jz" class="w-full p-2 border border-slate-300 rounded-lg text-sm outline-none">
+                                        <input type="text" id="hasilMulaiPojok" placeholder="Pk" class="w-1/2 p-2 border border-slate-300 rounded-lg text-sm outline-none">
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <input type="number" id="hasilSampaiJuz" placeholder="Sampai Jz" class="w-full p-2 border border-slate-300 rounded-lg text-sm outline-none">
+                                        <input type="text" id="hasilSampaiPojok" placeholder="Pk" class="w-1/2 p-2 border border-slate-300 rounded-lg text-sm outline-none">
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <select id="hasilCapaian" class="w-full p-2 border border-slate-300 rounded-lg text-sm outline-none bg-white font-bold">
+                                        <option value="">Capaian Materi?</option>
+                                        <option value="A">Lebih (A)</option>
+                                        <option value="B">Sesuai (B)</option>
+                                        <option value="C">Kurang (C)</option>
+                                    </select>
+                                    <input type="number" id="jmlJuzBelum" placeholder="Jml Juz Belum" class="w-full p-2 border border-slate-300 rounded-lg text-sm outline-none">
+                                    <input type="text" id="ketJuzBelum" placeholder="Ket (misal: 28-30)" class="w-full p-2 border border-slate-300 rounded-lg text-sm outline-none">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEKSI B, C, D, E, F -->
+                    <div class="space-y-6">
+                        
+                        <!-- SEKSI B & D: Yanbua & Akhlak -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- B. Yanbu'a -->
+                            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">B. Ujian Tulis Yanbu'a</h3>
+                                <div class="space-y-3">
+                                    <input type="text" id="yanbuaMateri" placeholder="Materi (Misal: Jilid 7 Bab Hukum Mad)" class="w-full p-3 border border-slate-300 rounded-xl text-sm outline-none">
+                                    <input type="number" id="yanbuaNilai" placeholder="Nilai (0-100)" class="w-full p-3 border border-slate-300 rounded-xl text-sm outline-none font-bold text-emerald-700">
+                                </div>
+                            </div>
+
+                            <!-- D. Akhlak -->
+                            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">D. Akhlak & Kepribadian</h3>
+                                <div class="space-y-3 text-sm">
+                                    <div class="flex justify-between items-center">
+                                        <span class="font-semibold text-slate-600">Kelakuan/Sikap</span>
+                                        <select id="akhlakSikap" class="p-2 border border-slate-300 rounded-lg bg-white w-24 text-center font-bold outline-none"><option value="-">-</option><option value="A">A</option><option value="B">B</option><option value="C">C</option></select>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="font-semibold text-slate-600">Kerajinan</span>
+                                        <select id="akhlakKerajinan" class="p-2 border border-slate-300 rounded-lg bg-white w-24 text-center font-bold outline-none"><option value="-">-</option><option value="A">A</option><option value="B">B</option><option value="C">C</option></select>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="font-semibold text-slate-600">Kerapian</span>
+                                        <select id="akhlakKerapian" class="p-2 border border-slate-300 rounded-lg bg-white w-24 text-center font-bold outline-none"><option value="-">-</option><option value="A">A</option><option value="B">B</option><option value="C">C</option></select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- C. Perkembangan Hafalan Bulanan -->
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">C. Perkembangan Hafalan (Bulanan)</h3>
+                            <div class="space-y-2" id="bulananContainer"></div>
+                            <div class="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-2">
+                                <p class="text-xs font-bold text-blue-800 mb-1">Target Ziadah (Keterangan)</p>
+                                <input type="text" id="targetKetText" placeholder="Misal: Standart Minimum Target per 10 Mei 2026: Juz 15 Pk 3" class="w-full p-2 border border-slate-300 rounded-lg text-sm outline-none">
+                                <select id="targetStatus" class="w-full p-2 border border-slate-300 rounded-lg text-sm outline-none bg-white font-bold text-blue-700">
+                                    <option value="">- Status Tercapai -</option>
+                                    <option value="Tercapai">Tercapai</option>
+                                    <option value="Tidak Tercapai">Tidak Tercapai</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- E & F: Keaktifan & Nasihat -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">E. Keaktifan</h3>
+                                <div class="grid grid-cols-2 gap-3 text-sm">
+                                    <div><label class="block text-[10px] uppercase font-bold text-slate-500">Sakit/Izin</label><input type="number" id="keaktifanSakit" placeholder="0" class="w-full p-2 border border-slate-300 rounded-lg outline-none"></div>
+                                    <div><label class="block text-[10px] uppercase font-bold text-slate-500">Tdk Setor</label><input type="number" id="keaktifanTdkSetor" placeholder="0" class="w-full p-2 border border-slate-300 rounded-lg outline-none"></div>
+                                    <div><label class="block text-[10px] uppercase font-bold text-slate-500">Tanpa Ket</label><input type="number" id="keaktifanTanpaKet" placeholder="0" class="w-full p-2 border border-slate-300 rounded-lg outline-none"></div>
+                                    <div><label class="block text-[10px] uppercase font-bold text-slate-500">Efektif</label><input type="number" id="keaktifanEfektif" placeholder="235" class="w-full p-2 border border-slate-300 rounded-lg outline-none font-bold text-emerald-700"></div>
+                                </div>
+                            </div>
+                            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+                                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">F. Nasihat-Nasihat</h3>
+                                <textarea id="nasihatText" placeholder="Ketik nasihat ustaz/ustadzah di sini..." class="w-full flex-1 p-3 border border-slate-300 rounded-xl text-sm outline-none resize-none custom-scrollbar min-h-[100px]"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <div class="bg-slate-900 rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-4 mt-8">
+                    <div class="text-white">
+                        <h3 class="font-bold text-lg">Simpan Data & Rapor</h3>
+                        <p class="text-slate-400 text-sm">Nilai akan digabung (merge) jika santri sudah memiliki data sebelumnya.</p>
+                    </div>
+                    <button type="submit" id="submitBtn" class="w-full md:w-auto px-12 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl shadow-xl transition-all transform active:scale-95 disabled:opacity-50 uppercase tracking-wider">
+                        Simpan Data
+                    </button>
+                </div>
+            </form>
+
+            <!-- SECTION 3: DATA RAPOR -->
+            <div id="sectionRapor" class="hidden">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold text-slate-800">Daftar Rapor Santri</h2>
+                    <button id="btnRefresh" class="flex items-center gap-2 px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg font-bold text-sm transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+                        Segarkan Data
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto border border-slate-200 rounded-2xl shadow-sm">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                            <tr>
+                                <th class="p-5 font-bold">Nama Santri</th>
+                                <th class="p-5 font-bold">Juz Diujikan</th>
+                                <th class="p-5 font-bold">Jml Juz Belum</th>
+                                <th class="p-5 font-bold text-center">Kelulusan</th>
+                                <th class="p-5 font-bold text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="raporTableBody" class="text-sm">
+                            <tr><td colspan="5" class="text-center p-10 text-slate-400 italic">Belum ada data rapor tersimpan.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-6 right-6 hidden px-6 py-4 rounded-xl shadow-2xl font-bold transition-all z-50 text-sm max-w-sm flex items-center gap-3 transform translate-x-10 opacity-0"></div>
+
+    <!-- Modal Cetak Detail Rapor DOCX Style -->
+    <div id="detailModal" class="fixed inset-0 bg-slate-900/80 hidden items-center justify-center z-50 p-4 backdrop-blur-sm transition-opacity opacity-0">
+        <div class="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl transform scale-95 transition-transform" id="modalContent">
+            <div class="p-6 bg-emerald-900 text-white flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-xl">Preview Rapor Tahfidh</h3>
+                    <p class="text-emerald-200 text-sm" id="modalSubtitle">Cetak format A4</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="window.printRapor()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 rounded-lg font-bold text-sm shadow-sm transition flex items-center gap-2">
+                        🖨️ Cetak PDF / Print
+                    </button>
+                    <button onclick="window.closeModal()" class="text-emerald-200 hover:text-white p-2 text-3xl leading-none">&times;</button>
+                </div>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 bg-slate-200 flex justify-center custom-scrollbar" id="modalBodyWrapper">
+                <!-- Lembar Rapor A4 Style -->
+                <div id="printArea" class="bg-white p-10 w-full max-w-[210mm] shadow-lg min-h-[297mm] text-slate-800 relative">
+                    <div id="modalBody"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase & App Logic -->
+    <script>
+        // ==========================================================
+        // KONFIGURASI SUPABASE (GANTI DENGAN MILIK ANDA SEBELUM UPLOAD KE GITHUB)
+        // Ambil di Dashboard Supabase -> Project Settings -> API
+        // ==========================================================
+        const SUPABASE_URL = "https://uswyqskcrrhqxwebeakz.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzd3lxc2tjcnJocXh3ZWJlYWt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NjkzNzIsImV4cCI6MjEwNjI0NTM3Mn0.YiDGxufCcIuNfAMNwcyDjTfkokfynPg5r55glF1OgTk";
+
+        let supabaseClient = null;
+        let isOnline = false;
+
+        async function initSupabase() {
+            const statusDot = document.getElementById('onlineStatus');
+            const statusTxt = document.getElementById('onlineText');
+            const configWarning = document.getElementById('configWarning');
+
+            if (!SUPABASE_URL || SUPABASE_URL.includes("MASUKKAN_") || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("MASUKKAN_")) {
+                statusDot.classList.replace('bg-slate-400', 'bg-amber-400');
+                statusTxt.innerText = "Supabase Belum Dikonfigurasi";
+                configWarning.classList.remove('hidden');
+                document.getElementById('setupTableBody').innerHTML = `<tr><td colspan="8" class="text-center p-8 text-amber-600 font-semibold">Isi SUPABASE_URL dan SUPABASE_ANON_KEY terlebih dahulu.</td></tr>`;
+                return;
+            }
+
+            try {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                // Uji koneksi ringan ke tabel tahfidh_setup
+                const { error } = await supabaseClient.from('tahfidh_setup').select('id_santri').limit(1);
+                if (error) throw error;
+
+                isOnline = true;
+                statusDot.classList.replace('bg-slate-400', 'bg-emerald-400');
+                statusDot.classList.add('animate-pulse');
+                statusTxt.innerText = "Online - Supabase Cloud";
+                configWarning.classList.add('hidden');
+
+                loadSetupData();
+                loadRaporData();
+            } catch (err) {
+                console.error("Supabase connection error:", err);
+                statusDot.classList.replace('bg-slate-400', 'bg-red-400');
+                statusTxt.innerText = "Gagal Terhubung Supabase";
+                showToast("Gagal terhubung ke Supabase: " + (err.message || "Cek URL/Key & Tabel SQL"), "bg-red-600");
+            }
+        }
+
+        // TAB NAVIGATION
+        const tabSetup = document.getElementById('tabSetup');
+        const tabInput = document.getElementById('tabInput');
+        const tabRapor = document.getElementById('tabRapor');
+        
+        const secSetup = document.getElementById('sectionSetup');
+        const secInput = document.getElementById('tahfidhForm');
+        const secRapor = document.getElementById('sectionRapor');
+
+        function hideAllTabs() {
+            secSetup.classList.add('hidden');
+            secInput.classList.add('hidden');
+            secRapor.classList.add('hidden');
+            
+            [tabSetup, tabInput, tabRapor].forEach(t => {
+                t.className = "px-6 py-4 font-semibold text-emerald-200 border-b-4 border-transparent hover:text-white transition-all whitespace-nowrap";
+            });
+        }
+
+        tabSetup.addEventListener('click', () => {
+            hideAllTabs();
+            secSetup.classList.remove('hidden');
+            tabSetup.className = "px-6 py-4 font-semibold text-emerald-50 border-b-4 border-emerald-400 transition-all whitespace-nowrap";
+            loadSetupData();
+        });
+
+        tabInput.addEventListener('click', () => {
+            hideAllTabs();
+            secInput.classList.remove('hidden');
+            tabInput.className = "px-6 py-4 font-semibold text-emerald-50 border-b-4 border-emerald-400 transition-all whitespace-nowrap";
+        });
+
+        tabRapor.addEventListener('click', () => {
+            hideAllTabs();
+            secRapor.classList.remove('hidden');
+            tabRapor.className = "px-6 py-4 font-semibold text-emerald-50 border-b-4 border-emerald-400 transition-all whitespace-nowrap";
+            loadRaporData();
+        });
+
+        // INIT BULANAN INPUT ROWS
+        const bulananContainer = document.getElementById('bulananContainer');
+        for (let i = 1; i <= 5; i++) {
+            bulananContainer.innerHTML += `
+                <div class="flex gap-2 items-center">
+                    <span class="text-xs font-bold text-slate-400 w-4">${i}</span>
+                    <input type="text" id="blnNama_${i}" placeholder="Bulan (Cth: Januari)" class="w-full p-2 border border-slate-300 rounded-lg text-xs outline-none bg-slate-50">
+                    <input type="number" id="blnJuz_${i}" placeholder="Juz" class="w-20 p-2 border border-slate-300 rounded-lg text-xs outline-none text-center">
+                    <input type="number" id="blnPojok_${i}" placeholder="Pojok" class="w-20 p-2 border border-slate-300 rounded-lg text-xs outline-none text-center">
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // FITUR: DATA UJIAN (SETUP)
+        // ==========================================
+        const setupForm = document.getElementById('setupForm');
+        
+        setupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!isOnline) return showToast("Koneksi Supabase belum aktif.", "bg-red-600");
+            
+            const btn = document.getElementById('btnSimpanSetup');
+            btn.disabled = true;
+            btn.innerText = "Menyimpan...";
+
+            try {
+                const idSantri = document.getElementById('setupIdSantri').value.trim();
+                const payload = {
+                    namaSantri: document.getElementById('setupNamaSantri').value.trim(),
+                    tahunPelajaran: document.getElementById('setupThnPelajaran').value.trim() || "2025/2026 M.",
+                    semester: document.getElementById('setupSemester').value || "GENAP",
+                    batasZiadahJuz: document.getElementById('setupBatasZiadahJuz').value || "-",
+                    batasZiadahPojok: document.getElementById('setupBatasZiadahPojok').value || "-",
+                    juzAwal: parseInt(document.getElementById('setupJuzAwal').value) || 0,
+                    pojokAwal: document.getElementById('setupPojokAwal').value,
+                    juzAkhir: parseInt(document.getElementById('setupJuzAkhir').value) || 0,
+                    pojokAkhir: document.getElementById('setupPojokAkhir').value,
+                    tempat: document.getElementById('setupTempat').value || "-",
+                    majlis: document.getElementById('setupMajlis').value || "-",
+                    kelas: document.getElementById('setupKelas').value || "-",
+                    status: document.getElementById('setupStatus').value || "-",
+                    kamar: document.getElementById('setupKamar').value || "-",
+                    waliHalaqoh: document.getElementById('setupWaliHalaqoh').value || "-",
+                    timestamp: new Date().toISOString()
+                };
+
+                const { error } = await supabaseClient
+                    .from('tahfidh_setup')
+                    .upsert({ id_santri: idSantri, data: payload, updated_at: new Date().toISOString() });
+
+                if (error) throw error;
+                
+                showToast("Data Ujian Berhasil Disimpan ke Supabase!", "bg-emerald-600");
+                setupForm.reset();
+                loadSetupData();
+            } catch (err) {
+                console.error(err);
+                showToast("Gagal menyimpan data: " + err.message, "bg-red-600");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Simpan Data Ujian";
+            }
+        });
+
+        // UPLOAD CSV MASSAL
+        const btnDownloadTemplate = document.getElementById('btnDownloadTemplate');
+        btnDownloadTemplate.addEventListener('click', () => {
+            const header = "No. Ujian,Nama,Tahun Pelajaran,Semester,Batas Ziadah Juz,Batas Ziadah Pojok,Awal Baca Juz,Awal Baca Pojok,Akhir Baca Juz,Akhir Baca Pojok,Tempat,Majlis,Kelas,Status,Kamar,Wali Halaqoh\n";
+            const dummyData = "23.00864,Contoh Nama Santri,2025/2026 M.,GENAP,5,Atas,4,1,12,20,Masjid Jami,Majlis A,9C,Aktif,Kamar 01,Ust. Abdul Ghofur\n";
+            const csvContent = header + dummyData;
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "Template_Upload_Data_Ujian.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        const btnUploadCsv = document.getElementById('btnUploadCsv');
+        const csvFileInput = document.getElementById('csvFileInput');
+        btnUploadCsv.addEventListener('click', () => {
+            if (!isOnline) return showToast("Koneksi Supabase belum aktif.", "bg-red-600");
+            const file = csvFileInput.files[0];
+            if (!file) return showToast("Pilih file CSV terlebih dahulu!", "bg-orange-600");
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const text = e.target.result;
+                const rows = text.split('\n');
+                const batchRecords = [];
+                
+                btnUploadCsv.innerText = "Memproses...";
+                btnUploadCsv.disabled = true;
+
+                try {
+                    for (let i = 1; i < rows.length; i++) {
+                        if (rows[i].trim() === "") continue;
+                        const cols = rows[i].split(',').map(c => c.trim());
+                        if (cols.length >= 10 && cols[0]) {
+                            const idSantri = cols[0];
+                            const payload = {
+                                namaSantri: cols[1] || "-",
+                                tahunPelajaran: cols[2] || "-",
+                                semester: cols[3] || "-",
+                                batasZiadahJuz: cols[4] || "-",
+                                batasZiadahPojok: cols[5] || "-",
+                                juzAwal: parseInt(cols[6]) || 0,
+                                pojokAwal: cols[7] || "-",
+                                juzAkhir: parseInt(cols[8]) || 0,
+                                pojokAkhir: cols[9] || "-",
+                                tempat: cols[10] || "-",
+                                majlis: cols[11] || "-",
+                                kelas: cols[12] || "-",
+                                status: cols[13] || "-",
+                                kamar: cols[14] || "-",
+                                waliHalaqoh: cols[15] || "-",
+                                timestamp: new Date().toISOString()
+                            };
+                            batchRecords.push({
+                                id_santri: idSantri,
+                                data: payload,
+                                updated_at: new Date().toISOString()
+                            });
+                        }
+                    }
+
+                    if (batchRecords.length > 0) {
+                        const { error } = await supabaseClient.from('tahfidh_setup').upsert(batchRecords);
+                        if (error) throw error;
+                    }
+                    
+                    showToast(`Berhasil upload ${batchRecords.length} data santri!`, "bg-emerald-600");
+                    csvFileInput.value = "";
+                    loadSetupData();
+                } catch (err) {
+                    showToast("Gagal upload CSV: " + err.message, "bg-red-600");
+                } finally {
+                    btnUploadCsv.innerText = "Upload";
+                    btnUploadCsv.disabled = false;
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        async function loadSetupData() {
+            if (!isOnline) return;
+            const tbody = document.getElementById('setupTableBody');
+            
+            try {
+                const { data: rows, error } = await supabaseClient
+                    .from('tahfidh_setup')
+                    .select('*')
+                    .order('id_santri', { ascending: true });
+
+                if (error) throw error;
+                
+                if (!rows || rows.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" class="text-center p-8 text-slate-400 italic">Belum ada database ujian tersimpan.</td></tr>`;
+                    return;
+                }
+                
+                tbody.innerHTML = '';
+                rows.forEach(row => {
+                    const data = row.data || {};
+                    const tr = document.createElement('tr');
+                    tr.className = "border-b border-slate-100 hover:bg-slate-50 transition-colors";
+                    tr.innerHTML = `
+                        <td class="p-4 font-bold text-slate-700">#${row.id_santri}</td>
+                        <td class="p-4 font-semibold text-slate-800">${data.namaSantri || "-"}</td>
+                        <td class="p-4 text-xs font-bold text-slate-500">${data.tahunPelajaran || "-"}<br>${data.semester || "-"}</td>
+                        <td class="p-4 bg-blue-50/20"><span class="font-semibold text-blue-700">Jz ${data.batasZiadahJuz || "-"}</span> / Pk ${data.batasZiadahPojok || "-"}</td>
+                        <td class="p-4 bg-emerald-50/20"><span class="font-semibold text-emerald-700">Jz ${data.juzAwal || 0}</span> / Pk ${data.pojokAwal || "-"}</td>
+                        <td class="p-4 bg-orange-50/20"><span class="font-semibold text-orange-700">Jz ${data.juzAkhir || 0}</span> / Pk ${data.pojokAkhir || "-"}</td>
+                        <td class="p-4 text-xs text-slate-500">Kelas: ${data.kelas || "-"}, Wali: ${data.waliHalaqoh || "-"}</td>
+                        <td class="p-4 text-center">
+                            <button onclick="window.deleteSetup('${row.id_santri.replace(/'/g, "\\'")}')" class="text-red-500 hover:text-red-700 font-bold text-xs p-2 bg-red-50 rounded-lg">Hapus</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        window.deleteSetup = async function(id) {
+            if (!isOnline) return;
+            try {
+                const { error } = await supabaseClient.from('tahfidh_setup').delete().eq('id_santri', id);
+                if (error) throw error;
+                showToast("Data ujian dihapus.", "bg-slate-800");
+                loadSetupData();
+            } catch (e) {
+                showToast("Gagal menghapus: " + e.message, "bg-red-600");
+            }
+        };
+
+        // ==========================================
+        // FITUR: INPUT NILAI
+        // ==========================================
+        const form = document.getElementById('tahfidhForm');
+        const juzAwal = document.getElementById('juzAwal');
+        const juzAkhir = document.getElementById('juzAkhir');
+        const container = document.getElementById('juzRowsContainer');
+        const tableSection = document.getElementById('tableSection');
+        const nomorPeserta = document.getElementById('nomorPeserta');
+        const namaSantri = document.getElementById('namaSantri');
+        const statusMencari = document.getElementById('statusMencari');
+
+        let timer;
+        nomorPeserta.addEventListener('input', () => {
+            clearTimeout(timer);
+            const id = nomorPeserta.value.trim();
+            if (id.length < 1) {
+                namaSantri.value = "";
+                return;
+            }
+            statusMencari.classList.remove('hidden');
+            namaSantri.classList.add('loading-shimmer');
+            namaSantri.value = "";
+            
+            timer = setTimeout(async () => {
+                let nama = "Santri Tidak Dikenal";
+                
+                if (isOnline) {
+                    try {
+                        const { data: setupRow } = await supabaseClient
+                            .from('tahfidh_setup')
+                            .select('data')
+                            .eq('id_santri', id)
+                            .maybeSingle();
+
+                        let namaSetup = null;
+                        if (setupRow && setupRow.data) {
+                            const setupData = setupRow.data;
+                            if (setupData.namaSantri) namaSetup = setupData.namaSantri;
+                            
+                            document.getElementById('juzAwal').value = setupData.juzAwal || "";
+                            document.getElementsByName('pojokAwal')[0].value = setupData.pojokAwal || "";
+                            document.getElementById('juzAkhir').value = setupData.juzAkhir || "";
+                            document.getElementsByName('pojokAkhir')[0].value = setupData.pojokAkhir || "";
+                            updateRows();
+                        }
+
+                        const { data: gradeRow } = await supabaseClient
+                            .from('tahfidh_grades')
+                            .select('data')
+                            .eq('id_santri', id)
+                            .maybeSingle();
+
+                        if (gradeRow && gradeRow.data) {
+                            const gData = gradeRow.data;
+                            if (!namaSetup && gData.nama) namaSetup = gData.nama;
+                            
+                            document.getElementById('hasilMulaiJuz').value = gData.hasilMulaiJuz || "";
+                            document.getElementById('hasilMulaiPojok').value = gData.hasilMulaiPojok || "";
+                            document.getElementById('hasilSampaiJuz').value = gData.hasilSampaiJuz || "";
+                            document.getElementById('hasilSampaiPojok').value = gData.hasilSampaiPojok || "";
+                            document.getElementById('hasilCapaian').value = gData.hasilCapaian || "";
+                            document.getElementById('jmlJuzBelum').value = gData.jmlJuzBelum || "";
+                            document.getElementById('ketJuzBelum').value = gData.ketJuzBelum || "";
+
+                            document.getElementById('yanbuaMateri').value = gData.yanbuaMateri || "";
+                            document.getElementById('yanbuaNilai').value = gData.yanbuaNilai || "";
+
+                            document.getElementById('akhlakSikap').value = gData.akhlakSikap || "-";
+                            document.getElementById('akhlakKerajinan').value = gData.akhlakKerajinan || "-";
+                            document.getElementById('akhlakKerapian').value = gData.akhlakKerapian || "-";
+
+                            document.getElementById('keaktifanSakit').value = gData.keaktifanSakit || "";
+                            document.getElementById('keaktifanTdkSetor').value = gData.keaktifanTdkSetor || "";
+                            document.getElementById('keaktifanTanpaKet').value = gData.keaktifanTanpaKet || "";
+                            document.getElementById('keaktifanEfektif').value = gData.keaktifanEfektif || "";
+                            
+                            document.getElementById('nasihatText').value = gData.nasihatText || "";
+
+                            let bulanan = [];
+                            try { bulanan = typeof gData.perkembanganBulanan === 'string' ? JSON.parse(gData.perkembanganBulanan) : (gData.perkembanganBulanan || []); } catch (e) {}
+                            for (let i = 1; i <= 5; i++) {
+                                if (bulanan[i - 1]) {
+                                    document.getElementById(`blnNama_${i}`).value = bulanan[i - 1].nama || "";
+                                    document.getElementById(`blnJuz_${i}`).value = bulanan[i - 1].juz || "";
+                                    document.getElementById(`blnPojok_${i}`).value = bulanan[i - 1].pojok || "";
+                                } else {
+                                    document.getElementById(`blnNama_${i}`).value = "";
+                                    document.getElementById(`blnJuz_${i}`).value = "";
+                                    document.getElementById(`blnPojok_${i}`).value = "";
+                                }
+                            }
+                            document.getElementById('targetKetText').value = gData.targetKetText || "";
+                            document.getElementById('targetStatus').value = gData.targetStatus || "";
+
+                            let details = {};
+                            try { details = typeof gData.juzDetails === 'string' ? JSON.parse(gData.juzDetails) : (gData.juzDetails || {}); } catch (e) {}
+                            
+                            const start = parseInt(document.getElementById('juzAwal').value);
+                            const end = parseInt(document.getElementById('juzAkhir').value);
+                            if (start > 0 && end > 0) {
+                                for (let i = start; i <= end; i++) {
+                                    if (details[i]) {
+                                        let lInput = document.getElementsByName(`juz_${i}_lancar`)[0];
+                                        let kInput = document.getElementById(`ket_juz_${i}`);
+                                        let mInput = document.getElementsByName(`juz_${i}_makhroj`)[0];
+                                        let tInput = document.getElementsByName(`juz_${i}_tajwid`)[0];
+                                        let tlInput = document.getElementsByName(`juz_${i}_tilawah`)[0];
+                                        
+                                        if (lInput) lInput.value = details[i].lancar || "";
+                                        if (kInput) kInput.value = details[i].keterangan || "";
+                                        if (mInput) mInput.value = details[i].makhroj || "";
+                                        if (tInput) tInput.value = details[i].tajwid || "";
+                                        if (tlInput) tlInput.value = details[i].tilawah || "";
+                                    }
+                                }
+                            }
+                            showToast("Data santri dan rekam nilai ditemukan! Siap dilanjutkan.", "bg-blue-600");
+                        } else if (setupRow) {
+                            showToast("Target Juz dimuat. Belum ada nilai tersimpan.", "bg-emerald-600");
+                        }
+                        
+                        nama = namaSetup || nama;
+                    } catch (err) {
+                        console.error("Gagal menarik data:", err);
+                    }
+                }
+
+                statusMencari.classList.add('hidden');
+                namaSantri.classList.remove('loading-shimmer');
+                namaSantri.value = nama !== "Santri Tidak Dikenal" ? nama : "Nama Belum Ada di Setup";
+                namaSantri.classList.add('bg-white');
+            }, 600);
+        });
+
+        const gradeOptions = `
+            <option value="">-</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+            <option value="K">K</option>
+        `;
+
+        window.getKeterangan = function(nilai) {
+            const n = parseFloat(nilai);
+            if (isNaN(n)) return "";
+            if (n >= 90) return "Amat Baik";
+            if (n >= 80) return "Baik";
+            if (n >= 60) return "Cukup";
+            return "Kurang";
+        };
+
+        function updateRows() {
+            const start = parseInt(juzAwal.value);
+            const end = parseInt(juzAkhir.value);
+            if (start > 0 && end >= start && end <= 30) {
+                tableSection.classList.remove('hidden');
+                container.innerHTML = '';
+                for (let i = start; i <= end; i++) {
+                    const row = document.createElement('tr');
+                    row.className = 'dynamic-row border-b border-slate-100';
+                    row.innerHTML = `
+                        <td class="p-4 font-bold text-slate-700 bg-slate-50 border-r border-slate-100 text-center whitespace-nowrap">Juz ${i}</td>
+                        <td class="p-2 min-w-[100px]">
+                            <input type="number" name="juz_${i}_lancar" step="0.1" min="0" max="100" placeholder="0-100" 
+                                oninput="document.getElementById('ket_juz_${i}').value = window.getKeterangan(this.value)"
+                                class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-center font-bold text-sm">
+                        </td>
+                        <td class="p-2 min-w-[100px]">
+                            <input type="text" id="ket_juz_${i}" name="juz_${i}_keterangan" readonly placeholder="-" 
+                                class="w-full p-2 border-none bg-transparent outline-none text-center font-semibold text-slate-600 text-xs">
+                        </td>
+                        <td class="p-2 min-w-[80px]"><select name="juz_${i}_tilawah" class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-center font-bold text-sm">${gradeOptions}</select></td>
+                        <td class="p-2 min-w-[80px]"><select name="juz_${i}_tajwid" class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-center font-bold text-sm">${gradeOptions}</select></td>
+                        <td class="p-2 min-w-[80px]"><select name="juz_${i}_makhroj" class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-center font-bold text-sm">${gradeOptions}</select></td>
+                    `;
+                    container.appendChild(row);
+                }
+            } else {
+                tableSection.classList.add('hidden');
+            }
+        }
+
+        juzAwal.addEventListener('input', updateRows);
+        juzAkhir.addEventListener('input', updateRows);
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const idSantri = document.getElementById('nomorPeserta').value.trim();
+            const nama = document.getElementById('namaSantri').value.trim();
+            
+            if (!idSantri || !nama) return showToast("Nomor Peserta belum diisi!", "bg-orange-600");
+            if (!isOnline) return showToast("Koneksi Supabase belum aktif.", "bg-red-600");
+            
+            btn.disabled = true;
+            btn.innerText = "MENYIMPAN...";
+            
+            try {
+                const { data: existingRow } = await supabaseClient
+                    .from('tahfidh_grades')
+                    .select('data')
+                    .eq('id_santri', idSantri)
+                    .maybeSingle();
+
+                const existingData = existingRow ? existingRow.data : {};
+                let mergedJuzDetails = {};
+                if (existingData.juzDetails) {
+                    try {
+                        mergedJuzDetails = typeof existingData.juzDetails === 'string'
+                            ? JSON.parse(existingData.juzDetails)
+                            : existingData.juzDetails;
+                    } catch (e) {}
+                }
+
+                const juzAwalVal = parseInt(document.getElementById('juzAwal').value) || 0;
+                const juzAkhirVal = parseInt(document.getElementById('juzAkhir').value) || 0;
+                
+                let finalJuzAwal = juzAwalVal;
+                let finalJuzAkhir = juzAkhirVal;
+
+                if (existingData.juzAwal && existingData.juzAwal < finalJuzAwal) finalJuzAwal = existingData.juzAwal;
+                if (existingData.juzAkhir && existingData.juzAkhir > finalJuzAkhir) finalJuzAkhir = existingData.juzAkhir;
+                
+                for (let i = juzAwalVal; i <= juzAkhirVal; i++) {
+                    const lancarVal = document.getElementsByName(`juz_${i}_lancar`)[0]?.value;
+                    const makhrojVal = document.getElementsByName(`juz_${i}_makhroj`)[0]?.value;
+                    const tajwidVal = document.getElementsByName(`juz_${i}_tajwid`)[0]?.value;
+                    const tilawahVal = document.getElementsByName(`juz_${i}_tilawah`)[0]?.value;
+
+                    if (lancarVal || makhrojVal || tajwidVal || tilawahVal) {
+                        mergedJuzDetails[i] = {
+                            lancar: lancarVal,
+                            keterangan: document.getElementById(`ket_juz_${i}`).value,
+                            makhroj: makhrojVal,
+                            tajwid: tajwidVal,
+                            tilawah: tilawahVal
+                        };
+                    }
+                }
+
+                let bulananArr = [];
+                for (let i = 1; i <= 5; i++) {
+                    bulananArr.push({
+                        nama: document.getElementById(`blnNama_${i}`).value,
+                        juz: document.getElementById(`blnJuz_${i}`).value,
+                        pojok: document.getElementById(`blnPojok_${i}`).value
+                    });
+                }
+
+                const payload = {
+                    ...existingData,
+                    idSantri: idSantri,
+                    nama: nama,
+                    juzAwal: finalJuzAwal,
+                    pojokAwal: document.getElementsByName('pojokAwal')[0].value,
+                    juzAkhir: finalJuzAkhir,
+                    pojokAkhir: document.getElementsByName('pojokAkhir')[0].value,
+                    juzDetails: JSON.stringify(mergedJuzDetails),
+
+                    hasilMulaiJuz: document.getElementById('hasilMulaiJuz').value,
+                    hasilMulaiPojok: document.getElementById('hasilMulaiPojok').value,
+                    hasilSampaiJuz: document.getElementById('hasilSampaiJuz').value,
+                    hasilSampaiPojok: document.getElementById('hasilSampaiPojok').value,
+                    hasilCapaian: document.getElementById('hasilCapaian').value,
+                    
+                    jmlJuzBelum: document.getElementById('jmlJuzBelum').value || 0,
+                    ketJuzBelum: document.getElementById('ketJuzBelum').value || "-",
+                    
+                    yanbuaMateri: document.getElementById('yanbuaMateri').value,
+                    yanbuaNilai: document.getElementById('yanbuaNilai').value,
+                    
+                    perkembanganBulanan: JSON.stringify(bulananArr),
+                    targetKetText: document.getElementById('targetKetText').value,
+                    targetStatus: document.getElementById('targetStatus').value,
+
+                    akhlakSikap: document.getElementById('akhlakSikap').value,
+                    akhlakKerajinan: document.getElementById('akhlakKerajinan').value,
+                    akhlakKerapian: document.getElementById('akhlakKerapian').value,
+
+                    keaktifanSakit: document.getElementById('keaktifanSakit').value,
+                    keaktifanTdkSetor: document.getElementById('keaktifanTdkSetor').value,
+                    keaktifanTanpaKet: document.getElementById('keaktifanTanpaKet').value,
+                    keaktifanEfektif: document.getElementById('keaktifanEfektif').value,
+
+                    nasihatText: document.getElementById('nasihatText').value,
+                    timestamp: new Date().toISOString()
+                };
+
+                const { error } = await supabaseClient
+                    .from('tahfidh_grades')
+                    .upsert({ id_santri: idSantri, data: payload, updated_at: new Date().toISOString() });
+
+                if (error) throw error;
+
+                showToast("✅ Berhasil Disimpan di Supabase!", "bg-emerald-600");
+                form.reset();
+                tableSection.classList.add('hidden');
+                document.getElementById('namaSantri').value = "";
+            } catch (err) {
+                console.error(err);
+                showToast("❌ Gagal: " + err.message, "bg-red-600");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Simpan Data";
+            }
+        });
+
+        // ==========================================
+        // FITUR: IMPORT NILAI DARI EXCEL (SHEET MAILING)
+        // ==========================================
+        let parsedWorkbook = null;
+        let parsedExcelRows = [];
+
+        const excelNilaiInput = document.getElementById('excelNilaiInput');
+        const excelSheetSelect = document.getElementById('excelSheetSelect');
+        const btnImportExcelNilai = document.getElementById('btnImportExcelNilai');
+        const excelPreviewBox = document.getElementById('excelPreviewBox');
+        const excelPreviewBody = document.getElementById('excelPreviewBody');
+        const excelPreviewSummary = document.getElementById('excelPreviewSummary');
+        const excelDetectedColsBadge = document.getElementById('excelDetectedColsBadge');
+        const btnDownloadNilaiTemplate = document.getElementById('btnDownloadNilaiTemplate');
+
+        function normKey(str) {
+            return String(str || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        }
+
+        function pickField(rowObj, normKeysMap, patterns) {
+            for (const pat of patterns) {
+                for (const [nk, origKey] of Object.entries(normKeysMap)) {
+                    const matched = typeof pat === 'string' ? nk === pat : pat.test(nk);
+                    if (matched) {
+                        const val = rowObj[origKey];
+                        if (val !== undefined && val !== null && String(val).trim() !== '') {
+                            return String(val).trim();
+                        }
+                    }
+                }
+            }
+            return '';
+        }
+
+        function parseMailingSheet(sheetName) {
+            if (!parsedWorkbook || !sheetName) return;
+            const sheet = parsedWorkbook.Sheets[sheetName];
+            if (!sheet) return;
+
+            const rawMatrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+            let headerRowIdx = 0;
+            for (let r = 0; r < Math.min(rawMatrix.length, 10); r++) {
+                const joined = rawMatrix[r].map(c => normKey(c)).join(' | ');
+                if (joined.includes('nama') || joined.includes('nisq') || joined.includes('no ujian') || joined.includes('no peserta')) {
+                    headerRowIdx = r;
+                    break;
+                }
+            }
+
+            const jsonRows = XLSX.utils.sheet_to_json(sheet, { range: headerRowIdx, defval: '' });
+            if (!jsonRows.length) {
+                excelPreviewBox.classList.add('hidden');
+                btnImportExcelNilai.disabled = true;
+                showToast("Sheet terpilih kosong atau tidak memiliki data.", "bg-orange-600");
+                return;
+            }
+
+            const sampleKeys = Object.keys(jsonRows[0]);
+            const normKeysMap = {};
+            sampleKeys.forEach(k => {
+                const nk = normKey(k);
+                if (nk && !normKeysMap[nk]) normKeysMap[nk] = k;
+            });
+
+            parsedExcelRows = [];
+            let totalJuzColsDetected = new Set();
+
+            jsonRows.forEach((row, idx) => {
+                const idSantri = pickField(row, normKeysMap, [
+                    'nisq', 'id santri', 'id', 'no ujian', 'nomor ujian', 'no peserta', 'nomor peserta', 'nis', /^nisq/, /^no.*ujian/, /^no.*peserta/
+                ]);
+                const nama = pickField(row, normKeysMap, [
+                    'nama', 'nama santri', 'nama lengkap', 'nama lengkap santri', /^nama/
+                ]);
+
+                if (!idSantri && !nama) return;
+                const finalId = idSantri || `ROW_${idx + 1}`;
+
+                const kelas = pickField(row, normKeysMap, ['kelas', 'kls', /^kelas/]);
+                const semester = pickField(row, normKeysMap, ['semester', 'smt', /^semester/]);
+                const tahunPelajaran = pickField(row, normKeysMap, ['tahun pelajaran', 'thn pelajaran', 'tahun', 'tapel', /^tahun/]);
+                const waliHalaqoh = pickField(row, normKeysMap, ['wali halaqoh', 'ustadz halaqoh', 'wali', 'halaqoh', 'pembimbing', 'musyrif']);
+
+                const juzAwalVal = parseInt(pickField(row, normKeysMap, ['materi juz awal', 'juz awal', 'awal juz', 'mulai juz', 'juz mulai', 'awal baca juz'])) || 0;
+                const pojokAwalVal = pickField(row, normKeysMap, ['materi pojok awal', 'pojok awal', 'awal pojok', 'mulai pojok', 'pojok mulai', 'awal baca pojok']);
+                const juzAkhirVal = parseInt(pickField(row, normKeysMap, ['materi juz akhir', 'juz akhir', 'akhir juz', 'sampai juz', 'juz sampai', 'akhir baca juz'])) || 0;
+                const pojokAkhirVal = pickField(row, normKeysMap, ['materi pojok akhir', 'pojok akhir', 'akhir pojok', 'sampai pojok', 'pojok sampai', 'akhir baca pojok']);
+
+                const hasilMulaiJuz = pickField(row, normKeysMap, ['hasil mulai juz', 'terbaca mulai juz', 'hasil juz awal', 'mulai juz terbaca']);
+                const hasilMulaiPojok = pickField(row, normKeysMap, ['hasil mulai pojok', 'terbaca mulai pojok', 'hasil pojok awal']);
+                const hasilSampaiJuz = pickField(row, normKeysMap, ['hasil sampai juz', 'terbaca sampai juz', 'hasil juz akhir', 'sampai juz terbaca']);
+                const hasilSampaiPojok = pickField(row, normKeysMap, ['hasil sampai pojok', 'terbaca sampai pojok', 'hasil pojok akhir']);
+                const hasilCapaian = pickField(row, normKeysMap, ['capaian materi', 'capaian', 'hasil capaian']);
+
+                const jmlJuzBelum = pickField(row, normKeysMap, ['jml juz belum', 'jumlah juz belum', 'juz belum', 'belum terbaca']);
+                const ketJuzBelum = pickField(row, normKeysMap, ['ket juz belum', 'keterangan juz belum', 'ket belum']);
+
+                const yanbuaMateri = pickField(row, normKeysMap, ['yanbua materi', 'materi yanbua', 'materi yanbu a', 'yanbu a materi']);
+                const yanbuaNilai = pickField(row, normKeysMap, ['yanbua nilai', 'nilai yanbua', 'nilai yanbu a', 'yanbu a nilai', 'yanbua', 'yanbu a']);
+
+                const akhlakSikap = pickField(row, normKeysMap, ['akhlak sikap', 'kelakuan sikap', 'kelakuan', 'sikap']);
+                const akhlakKerajinan = pickField(row, normKeysMap, ['akhlak kerajinan', 'kerajinan']);
+                const akhlakKerapian = pickField(row, normKeysMap, ['akhlak kerapian', 'kerapian']);
+
+                const keaktifanSakit = pickField(row, normKeysMap, ['sakit izin', 'sakit', 'izin', 'keaktifan sakit']);
+                const keaktifanTdkSetor = pickField(row, normKeysMap, ['tidak setor', 'tdk setor', 'keaktifan tdk setor']);
+                const keaktifanTanpaKet = pickField(row, normKeysMap, ['tanpa keterangan', 'tanpa ket', 'alpa', 'alpha', 'keaktifan tanpa ket']);
+                const keaktifanEfektif = pickField(row, normKeysMap, ['pertemuan efektif', 'efektif', 'keaktifan efektif']);
+
+                const targetKetText = pickField(row, normKeysMap, ['target keterangan', 'ket target', 'keterangan target', 'standar target', 'target ziadah']);
+                const targetStatus = pickField(row, normKeysMap, ['target status', 'status target', 'tercapai']);
+                const nasihatText = pickField(row, normKeysMap, ['nasihat', 'nasihat nasihat', 'catatan', 'pesan']);
+
+                const bulananArr = [];
+                for (let b = 1; b <= 5; b++) {
+                    const bNama = pickField(row, normKeysMap, [`bulan ${b}`, `bln ${b}`, `nama bulan ${b}`]);
+                    const bJuz = pickField(row, normKeysMap, [`juz bln ${b}`, `bln ${b} juz`, `juz bulan ${b}`, `bulan ${b} juz`]);
+                    const bPojok = pickField(row, normKeysMap, [`pojok bln ${b}`, `bln ${b} pojok`, `pojok bulan ${b}`, `bulan ${b} pojok`]);
+                    if (bNama || bJuz || bPojok) {
+                        bulananArr.push({ nama: bNama, juz: bJuz, pojok: bPojok });
+                    }
+                }
+
+                const juzDetails = {};
+                let minJuz = 31;
+                let maxJuz = 0;
+
+                for (let j = 1; j <= 30; j++) {
+                    const lancar = pickField(row, normKeysMap, [
+                        `juz ${j} nilai`, `juz ${j} lancar`, `nilai juz ${j}`, `lancar juz ${j}`,
+                        `nilai ${j}`, `lancar ${j}`, `juz ${j}`, `j${j} nilai`, `j${j} lancar`, `n${j}`, `juz${j}`
+                    ]);
+                    const ketExcel = pickField(row, normKeysMap, [
+                        `juz ${j} ket`, `juz ${j} keterangan`, `ket juz ${j}`, `keterangan juz ${j}`, `ket ${j}`, `k${j}`
+                    ]);
+                    const tilawah = pickField(row, normKeysMap, [
+                        `juz ${j} tilawah`, `tilawah juz ${j}`, `tilawah ${j}`, `til ${j}`, `tl ${j}`, `tl${j}`
+                    ]);
+                    const tajwid = pickField(row, normKeysMap, [
+                        `juz ${j} tajwid`, `tajwid juz ${j}`, `tajwid ${j}`, `taj ${j}`, `tj ${j}`, `tj${j}`
+                    ]);
+                    const makhroj = pickField(row, normKeysMap, [
+                        `juz ${j} makhroj`, `makhroj juz ${j}`, `makhroj ${j}`, `makh ${j}`, `mk ${j}`, `mk${j}`
+                    ]);
+
+                    if (lancar || tilawah || tajwid || makhroj) {
+                        totalJuzColsDetected.add(j);
+                        if (j < minJuz) minJuz = j;
+                        if (j > maxJuz) maxJuz = j;
+                        juzDetails[j] = {
+                            lancar: lancar,
+                            keterangan: ketExcel || window.getKeterangan(lancar),
+                            tilawah: tilawah.toUpperCase(),
+                            tajwid: tajwid.toUpperCase(),
+                            makhroj: makhroj.toUpperCase()
+                        };
+                    }
+                }
+
+                parsedExcelRows.push({
+                    idSantri: finalId,
+                    nama: nama || `Santri #${finalId}`,
+                    kelas,
+                    semester,
+                    tahunPelajaran,
+                    waliHalaqoh,
+                    juzAwal: juzAwalVal || (minJuz <= 30 ? minJuz : 0),
+                    pojokAwal: pojokAwalVal,
+                    juzAkhir: juzAkhirVal || maxJuz,
+                    pojokAkhir: pojokAkhirVal,
+                    juzDetails,
+                    hasilMulaiJuz,
+                    hasilMulaiPojok,
+                    hasilSampaiJuz,
+                    hasilSampaiPojok,
+                    hasilCapaian,
+                    jmlJuzBelum,
+                    ketJuzBelum,
+                    yanbuaMateri,
+                    yanbuaNilai,
+                    akhlakSikap,
+                    akhlakKerajinan,
+                    akhlakKerapian,
+                    keaktifanSakit,
+                    keaktifanTdkSetor,
+                    keaktifanTanpaKet,
+                    keaktifanEfektif,
+                    targetKetText,
+                    targetStatus,
+                    nasihatText,
+                    bulananArr
+                });
+            });
+
+            excelPreviewSummary.innerText = `Sheet "${sheetName}": Siap mengimpor ${parsedExcelRows.length} data santri.`;
+            excelDetectedColsBadge.innerText = `${sampleKeys.length} kolom terbaca | ${totalJuzColsDetected.size} kolom Juz terisi`;
+            excelPreviewBody.innerHTML = '';
+
+            parsedExcelRows.slice(0, 8).forEach(item => {
+                const juzKeys = Object.keys(item.juzDetails);
+                const juzLabel = juzKeys.length > 0 ? `Juz ${juzKeys.join(', ')}` : '-';
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="p-2 font-bold text-slate-700">${item.idSantri}</td>
+                    <td class="p-2 font-semibold text-slate-800">${item.nama}</td>
+                    <td class="p-2 text-slate-500">${item.kelas || '-'}</td>
+                    <td class="p-2 text-emerald-700 font-semibold">${juzLabel}</td>
+                    <td class="p-2">${item.yanbuaNilai || '-'}</td>
+                    <td class="p-2">${[item.akhlakSikap, item.akhlakKerajinan, item.akhlakKerapian].filter(Boolean).join('/') || '-'}</td>
+                `;
+                excelPreviewBody.appendChild(tr);
+            });
+
+            if (parsedExcelRows.length > 8) {
+                excelPreviewBody.innerHTML += `<tr><td colspan="6" class="p-2 text-center text-slate-400 italic">... dan ${parsedExcelRows.length - 8} santri lainnya</td></tr>`;
+            }
+
+            excelPreviewBox.classList.remove('hidden');
+            btnImportExcelNilai.disabled = parsedExcelRows.length === 0;
+        }
+
+        excelNilaiInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (typeof XLSX === 'undefined') {
+                return showToast("Library Excel belum selesai dimuat.", "bg-red-600");
+            }
+
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    parsedWorkbook = XLSX.read(data, { type: 'array' });
+
+                    excelSheetSelect.innerHTML = '';
+                    let preferredSheet = parsedWorkbook.SheetNames[0];
+
+                    parsedWorkbook.SheetNames.forEach(name => {
+                        const opt = document.createElement('option');
+                        opt.value = name;
+                        opt.textContent = `Sheet: ${name}`;
+                        excelSheetSelect.appendChild(opt);
+                        if (name.toLowerCase().includes('mailing')) {
+                            preferredSheet = name;
+                        }
+                    });
+
+                    excelSheetSelect.disabled = false;
+                    excelSheetSelect.value = preferredSheet;
+                    parseMailingSheet(preferredSheet);
+                    showToast(`File terbaca! Sheet "${preferredSheet}" dipilih otomatis.`, "bg-blue-600");
+                } catch (err) {
+                    console.error(err);
+                    showToast("Gagal membaca file Excel: " + err.message, "bg-red-600");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        excelSheetSelect.addEventListener('change', () => {
+            parseMailingSheet(excelSheetSelect.value);
+        });
+
+        btnImportExcelNilai.addEventListener('click', async () => {
+            if (!isOnline) {
+                return showToast("Koneksi Supabase belum aktif.", "bg-red-600");
+            }
+            if (!parsedExcelRows.length) return;
+
+            const progressWrap = document.getElementById('excelImportProgressWrap');
+            const progressBar = document.getElementById('excelProgressBar');
+            const progressText = document.getElementById('excelProgressText');
+            const progressPercent = document.getElementById('excelProgressPercent');
+
+            btnImportExcelNilai.disabled = true;
+            btnImportExcelNilai.innerText = "Mengimpor...";
+            progressWrap.classList.remove('hidden');
+
+            let successCount = 0;
+            const total = parsedExcelRows.length;
+
+            try {
+                for (let idx = 0; idx < total; idx++) {
+                    const item = parsedExcelRows[idx];
+                    const { data: existingRow } = await supabaseClient
+                        .from('tahfidh_grades')
+                        .select('data')
+                        .eq('id_santri', item.idSantri)
+                        .maybeSingle();
+
+                    const existing = existingRow ? existingRow.data : {};
+
+                    let mergedJuz = {};
+                    if (existing.juzDetails) {
+                        try { mergedJuz = typeof existing.juzDetails === 'string' ? JSON.parse(existing.juzDetails) : existing.juzDetails; } catch (e) {}
+                    }
+                    Object.keys(item.juzDetails).forEach(jKey => {
+                        mergedJuz[jKey] = {
+                            ...(mergedJuz[jKey] || {}),
+                            ...item.juzDetails[jKey]
+                        };
+                    });
+
+                    let finalJuzAwal = item.juzAwal || existing.juzAwal || 0;
+                    let finalJuzAkhir = item.juzAkhir || existing.juzAkhir || 0;
+                    if (existing.juzAwal && finalJuzAwal && existing.juzAwal < finalJuzAwal) finalJuzAwal = existing.juzAwal;
+                    if (existing.juzAkhir && finalJuzAkhir && existing.juzAkhir > finalJuzAkhir) finalJuzAkhir = existing.juzAkhir;
+
+                    const gradePayload = {
+                        ...existing,
+                        idSantri: item.idSantri,
+                        nama: item.nama || existing.nama || "-",
+                        juzAwal: finalJuzAwal,
+                        pojokAwal: item.pojokAwal || existing.pojokAwal || "",
+                        juzAkhir: finalJuzAkhir,
+                        pojokAkhir: item.pojokAkhir || existing.pojokAkhir || "",
+                        juzDetails: JSON.stringify(mergedJuz),
+                        hasilMulaiJuz: item.hasilMulaiJuz || existing.hasilMulaiJuz || "",
+                        hasilMulaiPojok: item.hasilMulaiPojok || existing.hasilMulaiPojok || "",
+                        hasilSampaiJuz: item.hasilSampaiJuz || existing.hasilSampaiJuz || "",
+                        hasilSampaiPojok: item.hasilSampaiPojok || existing.hasilSampaiPojok || "",
+                        hasilCapaian: item.hasilCapaian || existing.hasilCapaian || "",
+                        jmlJuzBelum: item.jmlJuzBelum !== '' ? item.jmlJuzBelum : (existing.jmlJuzBelum || 0),
+                        ketJuzBelum: item.ketJuzBelum || existing.ketJuzBelum || "-",
+                        yanbuaMateri: item.yanbuaMateri || existing.yanbuaMateri || "",
+                        yanbuaNilai: item.yanbuaNilai || existing.yanbuaNilai || "",
+                        perkembanganBulanan: item.bulananArr.length > 0 ? JSON.stringify(item.bulananArr) : (existing.perkembanganBulanan || "[]"),
+                        targetKetText: item.targetKetText || existing.targetKetText || "",
+                        targetStatus: item.targetStatus || existing.targetStatus || "",
+                        akhlakSikap: item.akhlakSikap || existing.akhlakSikap || "-",
+                        akhlakKerajinan: item.akhlakKerajinan || existing.akhlakKerajinan || "-",
+                        akhlakKerapian: item.akhlakKerapian || existing.akhlakKerapian || "-",
+                        keaktifanSakit: item.keaktifanSakit || existing.keaktifanSakit || "",
+                        keaktifanTdkSetor: item.keaktifanTdkSetor || existing.keaktifanTdkSetor || "",
+                        keaktifanTanpaKet: item.keaktifanTanpaKet || existing.keaktifanTanpaKet || "",
+                        keaktifanEfektif: item.keaktifanEfektif || existing.keaktifanEfektif || "",
+                        nasihatText: item.nasihatText || existing.nasihatText || "",
+                        timestamp: new Date().toISOString()
+                    };
+
+                    const { error: gErr } = await supabaseClient
+                        .from('tahfidh_grades')
+                        .upsert({ id_santri: item.idSantri, data: gradePayload, updated_at: new Date().toISOString() });
+                    if (gErr) throw gErr;
+
+                    if (item.kelas || item.tahunPelajaran || item.semester || item.waliHalaqoh) {
+                        const { data: prevSetupRow } = await supabaseClient
+                            .from('tahfidh_setup')
+                            .select('data')
+                            .eq('id_santri', item.idSantri)
+                            .maybeSingle();
+
+                        const prevSetup = prevSetupRow ? prevSetupRow.data : {};
+                        await supabaseClient.from('tahfidh_setup').upsert({
+                            id_santri: item.idSantri,
+                            data: {
+                                ...prevSetup,
+                                namaSantri: item.nama || prevSetup.namaSantri || "-",
+                                kelas: item.kelas || prevSetup.kelas || "-",
+                                semester: item.semester || prevSetup.semester || "GENAP",
+                                tahunPelajaran: item.tahunPelajaran || prevSetup.tahunPelajaran || "2025/2026 M.",
+                                waliHalaqoh: item.waliHalaqoh || prevSetup.waliHalaqoh || "-",
+                                juzAwal: item.juzAwal || prevSetup.juzAwal || 0,
+                                pojokAwal: item.pojokAwal || prevSetup.pojokAwal || "-",
+                                juzAkhir: item.juzAkhir || prevSetup.juzAkhir || 0,
+                                pojokAkhir: item.pojokAkhir || prevSetup.pojokAkhir || "-",
+                                timestamp: new Date().toISOString()
+                            },
+                            updated_at: new Date().toISOString()
+                        });
+                    }
+
+                    successCount++;
+                    const pct = Math.round(((idx + 1) / total) * 100);
+                    progressBar.style.width = `${pct}%`;
+                    progressPercent.innerText = `${pct}%`;
+                    progressText.innerText = `Menyimpan ${idx + 1} dari ${total} santri...`;
+                }
+
+                showToast(`✅ Berhasil mengimpor & menggabungkan ${successCount} data santri ke Supabase!`, "bg-emerald-600");
+                excelNilaiInput.value = "";
+                parsedExcelRows = [];
+                loadRaporData();
+                loadSetupData();
+            } catch (err) {
+                console.error(err);
+                showToast("❌ Terjadi kesalahan saat import: " + err.message, "bg-red-600");
+            } finally {
+                btnImportExcelNilai.disabled = false;
+                btnImportExcelNilai.innerText = "Import ke Supabase";
+                setTimeout(() => progressWrap.classList.add('hidden'), 2000);
+            }
+        });
+
+        btnDownloadNilaiTemplate.addEventListener('click', () => {
+            if (typeof XLSX === 'undefined') {
+                return showToast("Library Excel belum siap.", "bg-red-600");
+            }
+            const sampleRow = {
+                NISQ: "23.00864",
+                Nama: "Faqih Zain Nur Ibrahim Al Asrori",
+                Kelas: "9C",
+                Semester: "GENAP",
+                Tahun_Pelajaran: "2025/2026 M.",
+                Wali_Halaqoh: "Ust. Abdul Ghofur, S.Pd.",
+                Materi_Juz_Awal: 4,
+                Materi_Pojok_Awal: 1,
+                Materi_Juz_Akhir: 12,
+                Materi_Pojok_Akhir: 20,
+                Hasil_Mulai_Juz: 4,
+                Hasil_Mulai_Pojok: 1,
+                Hasil_Sampai_Juz: 12,
+                Hasil_Sampai_Pojok: 20,
+                Capaian_Materi: "B",
+                Jml_Juz_Belum: 0,
+                Ket_Juz_Belum: "-",
+                Yanbua_Materi: "Yanbu'a Jilid 7 (Bab Hukum Mad)",
+                Yanbua_Nilai: 82,
+                Akhlak_Sikap: "B",
+                Akhlak_Kerajinan: "B",
+                Akhlak_Kerapian: "B",
+                Sakit_Izin: 4,
+                Tidak_Setor: 0,
+                Tanpa_Keterangan: 0,
+                Pertemuan_Efektif: 235,
+                Target_Keterangan: "Standart Minimum Target Ziadah per 10 Mei 2026 Kelas 9 : Juz 15 Pojok 3",
+                Target_Status: "Tercapai",
+                Nasihat: "Jaga dan tingkatkan kualitas hafalanmu!",
+                Bulan_1: "Januari", Juz_Bln_1: 16, Pojok_Bln_1: 15,
+                Bulan_2: "Februari", Juz_Bln_2: 17, Pojok_Bln_2: 5,
+                Bulan_3: "Maret", Juz_Bln_3: 17, Pojok_Bln_3: 13,
+                Bulan_4: "April", Juz_Bln_4: 17, Pojok_Bln_4: 17,
+                Bulan_5: "Mei", Juz_Bln_5: 17, Pojok_Bln_5: 17
+            };
+
+            for (let j = 1; j <= 30; j++) {
+                sampleRow[`Juz_${j}_Nilai`] = j === 4 ? 98 : (j === 5 ? 94 : "");
+                sampleRow[`Juz_${j}_Tilawah`] = j === 4 ? "B" : (j === 5 ? "C" : "");
+                sampleRow[`Juz_${j}_Tajwid`] = j === 4 ? "B" : (j === 5 ? "C" : "");
+                sampleRow[`Juz_${j}_Makhroj`] = j === 4 ? "B" : (j === 5 ? "C" : "");
+            }
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet([sampleRow]);
+            XLSX.utils.book_append_sheet(wb, ws, "mailing");
+            XLSX.writeFile(wb, "Template_Input_Nilai_Mailing.xlsx");
+            showToast("Template Excel (.xlsx) berhasil diunduh!", "bg-emerald-600");
+        });
+
+        // ==========================================
+        // FITUR: DATA RAPOR (TAMPIL & CETAK)
+        // ==========================================
+        const btnRefresh = document.getElementById('btnRefresh');
+        let loadedRapor = [];
+        const modal = document.getElementById('detailModal');
+        const modalContent = document.getElementById('modalContent');
+        const modalSubtitle = document.getElementById('modalSubtitle');
+        const modalBody = document.getElementById('modalBody');
+
+        btnRefresh.addEventListener('click', loadRaporData);
+
+        async function loadRaporData() {
+            if (!isOnline) return;
+            const tbody = document.getElementById('raporTableBody');
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center p-10 text-slate-400 font-bold italic animate-pulse">Memuat data dari Supabase...</td></tr>`;
+            
+            try {
+                const { data: rows, error } = await supabaseClient
+                    .from('tahfidh_grades')
+                    .select('*')
+                    .order('id_santri', { ascending: true });
+
+                if (error) throw error;
+                
+                loadedRapor = [];
+                if (!rows || rows.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="text-center p-10 text-slate-400 italic">Belum ada data rapor tersimpan.</td></tr>`;
+                    return;
+                }
+                
+                tbody.innerHTML = '';
+                rows.forEach(row => {
+                    const data = row.data || {};
+                    loadedRapor.push(data);
+                    
+                    const jb = parseInt(data.jmlJuzBelum) || 0;
+                    const statusClass = jb > 0 ? "bg-red-100 text-red-700 border-red-200" : "bg-emerald-100 text-emerald-700 border-emerald-200";
+                    const statusText = jb > 0 ? "Tidak Lulus" : "Lulus";
+
+                    const tr = document.createElement('tr');
+                    tr.className = "border-b border-slate-100 hover:bg-slate-50 transition-colors";
+                    tr.innerHTML = `
+                        <td class="p-5 font-bold text-slate-800">${data.nama || "-"} <span class="block text-[10px] text-slate-400 font-normal mt-0.5">ID: ${data.idSantri || row.id_santri}</span></td>
+                        <td class="p-5 bg-emerald-50/30"><span class="font-bold text-emerald-700">Juz ${data.juzAwal || 0} - ${data.juzAkhir || 0}</span></td>
+                        <td class="p-5"><span class="bg-blue-600 text-white px-3 py-1 rounded-md font-bold text-xs">${jb} Juz (${data.ketJuzBelum || "-"})</span></td>
+                        <td class="p-5 text-center"><span class="px-3 py-1 rounded-md font-bold text-xs border ${statusClass}">${statusText}</span></td>
+                        <td class="p-5 text-right">
+                            <button onclick="window.viewDetail(${loadedRapor.length - 1})" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold text-xs transition shadow-sm">Lihat Detail</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error(e);
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center p-10 text-red-500 font-bold">Gagal memuat data dari Supabase.</td></tr>`;
+            }
+        }
+
+        window.viewDetail = async function(index) {
+            const data = loadedRapor[index];
+            if (!data) return;
+
+            modalSubtitle.innerText = `ID Santri: ${data.idSantri} | Nama: ${data.nama}`;
+            
+            let details = {};
+            try { details = typeof data.juzDetails === 'string' ? JSON.parse(data.juzDetails) : (data.juzDetails || {}); } catch (e) {}
+            
+            let bulanan = [];
+            try { bulanan = typeof data.perkembanganBulanan === 'string' ? JSON.parse(data.perkembanganBulanan) : (data.perkembanganBulanan || []); } catch (e) {}
+
+            let sData = {};
+            if (isOnline && data.idSantri) {
+                const { data: setupRow } = await supabaseClient
+                    .from('tahfidh_setup')
+                    .select('data')
+                    .eq('id_santri', data.idSantri)
+                    .maybeSingle();
+                if (setupRow && setupRow.data) sData = setupRow.data;
+            }
+            
+            let html = `
+                <style>
+                    .print-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 11px; }
+                    .print-table th, .print-table td { border: 1px solid #000; padding: 4px 6px; }
+                    .no-border-table { width: 100%; margin-bottom: 15px; font-size: 12px; font-weight: bold; }
+                    .no-border-table td { padding: 2px 4px; vertical-align: top; }
+                    .section-title { font-weight: bold; font-size: 12px; margin-top: 15px; margin-bottom: 5px; text-transform: uppercase;}
+                </style>
+                <div class="text-center font-bold text-xl mb-6 underline tracking-wider">RAPOR TAHFIDH</div>
+                
+                <table class="no-border-table">
+                    <tr>
+                        <td width="15%">Nama</td><td width="2%">:</td><td width="43%">${data.nama || '-'}</td>
+                        <td width="20%">Kelas/Semester</td><td width="2%">:</td><td width="18%">${sData.kelas || '-'}/${sData.semester || '-'}</td>
+                    </tr>
+                    <tr>
+                        <td>NISQ</td><td>:</td><td>${data.idSantri || '-'}</td>
+                        <td>Tahun Pelajaran</td><td>:</td><td>${sData.tahunPelajaran || '-'}</td>
+                    </tr>
+                </table>
+
+                <div class="section-title">A. UJIAN TAHFIDH</div>
+                <div style="font-size:11px; font-weight:bold; margin-bottom:2px;">Materi Ujian Tahfidh</div>
+                <table class="print-table" style="width:50%;">
+                    <tr><th colspan="2">Mulai</th><th colspan="2">Sampai</th></tr>
+                    <tr><th>Juz</th><th>Pojok</th><th>Juz</th><th>Pojok</th></tr>
+                    <tr class="text-center">
+                        <td>${sData.juzAwal || data.juzAwal || '-'}</td><td>${sData.pojokAwal || data.pojokAwal || '-'}</td>
+                        <td>${sData.juzAkhir || data.juzAkhir || '-'}</td><td>${sData.pojokAkhir || data.pojokAkhir || '-'}</td>
+                    </tr>
+                </table>
+
+                <div style="font-size:11px; font-weight:bold; margin-bottom:2px;">Nilai Ujian Tahfidh (KKM = Nilai 60)</div>
+                <table class="print-table">
+                    <tr class="bg-gray-100">
+                        <th width="5%">No</th><th width="20%">Hafalan Yang Diujikan</th><th width="12%">Nilai (0-100)</th>
+                        <th width="18%">Keterangan Nilai</th><th width="15%">Tilawah*</th><th width="15%">Tajwid*</th><th width="15%">Makhroj*</th>
+                    </tr>
+            `;
+
+            for (let i = 1; i <= 30; i++) {
+                const jData = details[i];
+                if (jData) {
+                    html += `
+                        <tr class="text-center">
+                            <td>${i}</td><td class="text-left pl-4">Juz ${i}</td>
+                            <td class="font-bold">${jData.lancar || ''}</td><td>${jData.keterangan || ''}</td>
+                            <td>${jData.tilawah || ''}</td><td>${jData.tajwid || ''}</td><td>${jData.makhroj || ''}</td>
+                        </tr>
+                    `;
+                } else {
+                    html += `
+                        <tr class="text-center" style="height: 22px;">
+                            <td>${i}</td><td class="text-left pl-4">Juz ${i}</td>
+                            <td></td><td></td><td></td><td></td><td></td>
+                        </tr>
+                    `;
+                }
+            }
+            
+            html += `
+                    <tr><td colspan="7" style="font-size:10px; font-style:italic;">*Keterangan Tilawah, Tajwid & Makhroj : (A) Amat Baik, (B) Baik, (C) Cukup, (K) Kurang</td></tr>
+                </table>
+
+                <div style="font-size:11px; font-weight:bold; margin-bottom:2px; margin-top:10px;">3. Hasil Ujian Tahfidh (hafalan yang terbaca)</div>
+                <table class="print-table" style="width:60%;">
+                    <tr><th colspan="2">Mulai</th><th colspan="2">Sampai</th><th rowspan="2">Capaian Materi**</th></tr>
+                    <tr><th>Juz</th><th>Pojok</th><th>Juz</th><th>Pojok</th></tr>
+                    <tr class="text-center font-bold">
+                        <td>${data.hasilMulaiJuz || '-'}</td><td>${data.hasilMulaiPojok || '-'}</td>
+                        <td>${data.hasilSampaiJuz || '-'}</td><td>${data.hasilSampaiPojok || '-'}</td>
+                        <td>${data.hasilCapaian || '-'}</td>
+                    </tr>
+                </table>
+                <div style="font-size:10px; font-style:italic; margin-top:-10px; margin-bottom:15px;">**Keterangan : Jika materi yang dibaca: Lebih = A; Sesuai = B; Kurang = C.</div>
+
+                <div class="section-title">B. UJIAN TULIS YANBU'A</div>
+                <table class="print-table" style="width:70%;">
+                    <tr><th>Materi</th><th width="20%">Nilai</th></tr>
+                    <tr><td class="pl-2">${data.yanbuaMateri || '-'}</td><td class="text-center font-bold">${data.yanbuaNilai || '-'}</td></tr>
+                </table>
+
+                <div class="section-title">C. PERKEMBANGAN HAFALAN</div>
+                <table class="print-table" style="width:70%;">
+                    <tr><th width="10%">No</th><th width="40%">Bulan</th><th width="25%">Juz</th><th width="25%">Pojok</th></tr>
+            `;
+            
+            for (let i = 0; i < 5; i++) {
+                let bln = bulanan[i] || {};
+                if (bln.nama || bln.juz) {
+                    html += `<tr class="text-center"><td>${i + 1}</td><td class="text-left pl-2">${bln.nama || '-'}</td><td>${bln.juz || '-'}</td><td>${bln.pojok || '-'}</td></tr>`;
+                }
+            }
+            
+            html += `
+                </table>
+                <div style="font-size:11px; margin-bottom:15px;">
+                    Keterangan : ${data.targetKetText || '-'} = <b>${data.targetStatus || '-'}</b>
+                </div>
+
+                <div class="flex gap-10">
+                    <div class="flex-1">
+                        <div class="section-title">D. NILAI PERKEMBANGAN AKHLAK</div>
+                        <table class="print-table">
+                            <tr><th width="15%">No</th><th>Kepribadian</th><th width="25%">Nilai</th></tr>
+                            <tr><td class="text-center">1</td><td>Kelakuan/Sikap</td><td class="text-center font-bold">${data.akhlakSikap || '-'}</td></tr>
+                            <tr><td class="text-center">2</td><td>Kerajinan</td><td class="text-center font-bold">${data.akhlakKerajinan || '-'}</td></tr>
+                            <tr><td class="text-center">3</td><td>Kerapian</td><td class="text-center font-bold">${data.akhlakKerapian || '-'}</td></tr>
+                        </table>
+                    </div>
+                    <div class="flex-1">
+                        <div class="section-title">E. KEAKTIFAN KBM TAHFIDH</div>
+                        <table class="print-table">
+                            <tr><th width="15%">No</th><th>Keterangan</th><th width="30%">Pertemuan</th></tr>
+                            <tr><td class="text-center">1</td><td>Sakit/Izin</td><td class="text-center">${data.keaktifanSakit || '-'}</td></tr>
+                            <tr><td class="text-center">2</td><td>Tidak Setor</td><td class="text-center">${data.keaktifanTdkSetor || '-'}</td></tr>
+                            <tr><td class="text-center">3</td><td>Tanpa Keterangan</td><td class="text-center">${data.keaktifanTanpaKet || '-'}</td></tr>
+                            <tr><td colspan="2" class="font-bold text-center">Pertemuan Efektif</td><td class="text-center font-bold">${data.keaktifanEfektif || '-'}</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="section-title">F. NASIHAT-NASIHAT :</div>
+                <div style="border: 1px solid #000; padding: 10px; font-size:11px; min-height:60px; white-space: pre-wrap;">${data.nasihatText || '-'}</div>
+
+                <div class="mt-8 text-[12px]">
+                    <div class="text-right mb-4">Pati, ....................................</div>
+                    <table style="width: 100%; text-align: center; border:none; margin-top:20px;">
+                        <tr>
+                            <td width="33%">Mengetahui,<br>Kepala Pondok<br><br><br><br><b>Ust. Khaerul Ismi Muamar Ahmad</b></td>
+                            <td width="33%">Ustadz Halaqoh<br><br><br><br><br><b>${sData.waliHalaqoh || '......................................'}</b></td>
+                            <td width="33%">Orang Tua/Wali<br><br><br><br><br><b>(......................................)</b></td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+
+            modalBody.innerHTML = html;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            }, 10);
+        };
+
+        window.printRapor = function() {
+            const printContent = document.getElementById('printArea').innerHTML;
+            const originalContent = document.body.innerHTML;
+            
+            document.body.innerHTML = `
+                <div style="padding:20px; font-family:'Inter', sans-serif; background:white; color:black;">
+                    ${printContent}
+                </div>
+            `;
+            
+            window.print();
+            document.body.innerHTML = originalContent;
+            window.location.reload();
+        };
+
+        window.closeModal = function() {
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 300);
+        };
+
+        function showToast(msg, cls) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.className = `fixed top-6 right-6 px-6 py-4 rounded-xl shadow-2xl font-bold transition-all z-50 text-sm max-w-sm flex items-center gap-3 transform translate-x-10 opacity-0 ${cls} text-white`;
+            
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.remove('translate-x-10', 'opacity-0');
+                toast.classList.add('translate-x-0', 'opacity-100');
+            }, 10);
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-x-0', 'opacity-100');
+                toast.classList.add('translate-x-10', 'opacity-0');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 3000);
+        }
+
+        // Jalankan koneksi Supabase saat halaman siap
+        initSupabase();
+    </script>
+</body>
+</html>
