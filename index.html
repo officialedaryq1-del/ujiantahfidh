@@ -615,12 +615,14 @@
                             ⬇️ Export Sheet Halaqoh
                         </button>
                     </div>
-                    <div class="overflow-x-auto border border-slate-200 rounded-2xl shadow-sm custom-scrollbar">
-                        <table class="w-full text-left border-collapse min-w-[1000px]">
+                   <div class="overflow-x-auto border border-slate-200 rounded-2xl shadow-sm custom-scrollbar">
+                        <table class="w-full text-left border-collapse min-w-[1200px]">
                             <thead class="bg-slate-800 text-white text-[11px] uppercase tracking-wider">
                                 <tr>
                                     <th class="p-3.5 text-center w-12">No</th>
                                     <th class="p-3.5">Wali Halaqoh</th>
+                                    <th class="p-3.5 text-center">Kelas</th>
+                                    <th class="p-3.5 text-center">Kamar</th>
                                     <th class="p-3.5 text-center">Jml Santri</th>
                                     <th class="p-3.5 text-center">Sudah Dinilai</th>
                                     <th class="p-3.5 text-center">Belum Dinilai</th>
@@ -633,7 +635,7 @@
                                 </tr>
                             </thead>
                             <tbody id="rekapHalaqohBody" class="text-sm">
-                                <tr><td colspan="11" class="text-center p-10 text-slate-400 italic">Klik tab Rekap atau Segarkan Rekap untuk memuat data.</td></tr>
+                                <tr><td colspan="13" class="text-center p-10 text-slate-400 italic">Klik tab Rekap atau Segarkan Rekap untuk memuat data.</td></tr>
                             </tbody>
                             <tfoot id="rekapHalaqohFoot" class="bg-slate-100 font-bold text-slate-800 text-xs border-t-2 border-slate-300"></tfoot>
                         </table>
@@ -2255,7 +2257,7 @@
 
             const halaqohBody = document.getElementById('rekapHalaqohBody');
             const santriBody = document.getElementById('rekapSantriBody');
-            halaqohBody.innerHTML = `<tr><td colspan="11" class="text-center p-10 text-slate-400 font-bold italic animate-pulse">Menghitung rekap dari Supabase...</td></tr>`;
+            halaqohBody.innerHTML = `<tr><td colspan="13" class="text-center p-10 text-slate-400 font-bold italic animate-pulse">Menghitung rekap dari Supabase...</td></tr>`;
             santriBody.innerHTML = `<tr><td colspan="15" class="text-center p-10 text-slate-400 font-bold italic animate-pulse">Memuat rekap santri...</td></tr>`;
 
             try {
@@ -2356,12 +2358,14 @@
                     };
                 });
 
-                const halaqohMap = {};
+               const halaqohMap = {};
                 rekapCombinedRows.forEach(row => {
                     const key = row.waliHalaqoh;
                     if (!halaqohMap[key]) {
                         halaqohMap[key] = {
                             waliHalaqoh: key,
+                            kelasSet: new Set(),
+                            kamarSet: new Set(),
                             totalSantri: 0,
                             sudahDinilai: 0,
                             belumDinilai: 0,
@@ -2374,6 +2378,8 @@
                         };
                     }
                     const h = halaqohMap[key];
+                    if (row.kelas && row.kelas !== '-') h.kelasSet.add(row.kelas);
+                    if (row.kamar && row.kamar !== '-') h.kamarSet.add(row.kamar);
                     h.totalSantri++;
                     if (row.hasGrade) {
                         h.sudahDinilai++;
@@ -2395,6 +2401,8 @@
                 rekapHalaqohRows = Object.values(halaqohMap)
                     .map(h => ({
                         ...h,
+                        kelasList: h.kelasSet.size ? Array.from(h.kelasSet).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).join(', ') : '-',
+                        kamarList: h.kamarSet.size ? Array.from(h.kamarSet).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).join(', ') : '-',
                         persenLulus: h.sudahDinilai > 0 ? Number(((h.lulus / h.sudahDinilai) * 100).toFixed(1)) : 0,
                         avgTahfidh: h.tahfidhCount > 0 ? Number((h.tahfidhSum / h.tahfidhCount).toFixed(1)) : null,
                         avgYanbua: h.yanbuaCount > 0 ? Number((h.yanbuaSum / h.yanbuaCount).toFixed(1)) : null
@@ -2440,16 +2448,14 @@
             selKelas.value = prevK;
         }
 
-        function renderRekapHalaqoh() {
+       function renderRekapHalaqoh() {
             const tbody = document.getElementById('rekapHalaqohBody');
             const tfoot = document.getElementById('rekapHalaqohFoot');
-
             if (!rekapHalaqohRows.length) {
-                tbody.innerHTML = `<tr><td colspan="11" class="text-center p-10 text-slate-400 italic">Belum ada data halaqoh tersimpan.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="13" class="text-center p-10 text-slate-400 italic">Belum ada data halaqoh tersimpan.</td></tr>`;
                 tfoot.innerHTML = '';
                 return;
             }
-
             tbody.innerHTML = '';
             let sumSantri = 0, sumSudah = 0, sumBelum = 0, sumLulus = 0, sumTidak = 0;
             let sumTahfidh = 0, cntTahfidh = 0, sumYanbua = 0, cntYanbua = 0;
@@ -2469,6 +2475,8 @@
                 tr.innerHTML = `
                     <td class="p-3.5 text-center font-bold text-slate-500">${idx + 1}</td>
                     <td class="p-3.5 font-bold text-slate-800">${h.waliHalaqoh}</td>
+                    <td class="p-3.5 text-center font-semibold text-slate-600">${h.kelasList}</td>
+                    <td class="p-3.5 text-center text-slate-600">${h.kamarList}</td>
                     <td class="p-3.5 text-center font-bold text-slate-700">${h.totalSantri}</td>
                     <td class="p-3.5 text-center text-blue-700 font-semibold">${h.sudahDinilai}</td>
                     <td class="p-3.5 text-center text-slate-500">${h.belumDinilai}</td>
@@ -2494,7 +2502,7 @@
 
             tfoot.innerHTML = `
                 <tr>
-                    <td colspan="2" class="p-3.5 text-right uppercase tracking-wider">Total / Rata-rata Keseluruhan</td>
+                    <td colspan="4" class="p-3.5 text-right uppercase tracking-wider">Total / Rata-rata Keseluruhan</td>
                     <td class="p-3.5 text-center">${sumSantri}</td>
                     <td class="p-3.5 text-center text-blue-700">${sumSudah}</td>
                     <td class="p-3.5 text-center">${sumBelum}</td>
@@ -2507,7 +2515,7 @@
                 </tr>
             `;
         }
-
+        
         function getFilteredRekapSantri() {
             const q = document.getElementById('filterRekapSearch').value.trim().toLowerCase();
             const fHalaqoh = document.getElementById('filterRekapHalaqoh').value;
@@ -2599,6 +2607,8 @@
             return rekapHalaqohRows.map((h, i) => ({
                 "No": i + 1,
                 "Wali Halaqoh": h.waliHalaqoh,
+                "Kelas": h.kelasList,
+                "Kamar": h.kamarList,
                 "Jml Santri": h.totalSantri,
                 "Sudah Dinilai": h.sudahDinilai,
                 "Belum Dinilai": h.belumDinilai,
