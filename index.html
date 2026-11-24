@@ -114,9 +114,17 @@
                         </div>
                     </div>
 
-                    <!-- Filter & Pencarian Database -->
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                   <!-- Filter & Pencarian Database -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                         <input type="text" id="filterSetupSearch" placeholder="Cari No. Ujian, Nama Santri, Kamar..." class="p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-600 bg-white">
+                        <select id="filterSetupTahun" class="p-2.5 border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-600 bg-white">
+                            <option value="">Semua Tahun Ajaran</option>
+                        </select>
+                        <select id="filterSetupSemester" class="p-2.5 border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-600 bg-white">
+                            <option value="">Semua Semester</option>
+                            <option value="GASAL">Gasal</option>
+                            <option value="GENAP">Genap</option>
+                        </select>
                         <select id="filterSetupKelas" class="p-2.5 border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-600 bg-white">
                             <option value="">Semua Kelas</option>
                         </select>
@@ -191,8 +199,8 @@
                             <div>
                                 <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Semester</label>
                                 <select id="setupSemester" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm font-bold bg-white">
+                                    <option value="GASAL">GASAL</option>
                                     <option value="GENAP">GENAP</option>
-                                    <option value="GANJIL">GANJIL</option>
                                 </select>
                             </div>
                             <div>
@@ -873,42 +881,62 @@
             switchSetupSubmenu('database');
         });
 
+        function normalizeSemester(val) {
+            const s = (val || '').trim().toUpperCase();
+            if (s === 'GANJIL' || s === 'GASAL') return 'GASAL';
+            if (s === 'GENAP') return 'GENAP';
+            return s;
+        }
+
         function populateSetupFilters() {
+            const selTahun = document.getElementById('filterSetupTahun');
             const selKelas = document.getElementById('filterSetupKelas');
             const selWali = document.getElementById('filterSetupWali');
+            const prevT = selTahun.value;
             const prevK = selKelas.value;
             const prevW = selWali.value;
 
+            const uniqueTahun = Array.from(new Set(setupRecordsList.map(r => (r.thnPelajaran || '').trim()).filter(Boolean))).sort().reverse();
             const uniqueKelas = Array.from(new Set(setupRecordsList.map(r => (r.kelas || '').trim()).filter(Boolean))).sort();
             const uniqueWali = Array.from(new Set(setupRecordsList.map(r => (r.waliHalaqoh || '').trim()).filter(Boolean))).sort();
 
+            selTahun.innerHTML = `<option value="">Semua Tahun Ajaran</option>` + uniqueTahun.map(t => `<option value="${t.replace(/"/g, '&quot;')}">${t}</option>`).join('');
             selKelas.innerHTML = `<option value="">Semua Kelas</option>` + uniqueKelas.map(k => `<option value="${k.replace(/"/g, '&quot;')}">${k}</option>`).join('');
             selWali.innerHTML = `<option value="">Semua Wali Halaqoh</option>` + uniqueWali.map(w => `<option value="${w.replace(/"/g, '&quot;')}">${w}</option>`).join('');
 
+            selTahun.value = prevT;
             selKelas.value = prevK;
             selWali.value = prevW;
 
             document.getElementById('badgeCountDatabase').innerText = setupRecordsList.length;
-            document.getElementById('statSetupTotalSantri').innerText = setupRecordsList.length;
-            document.getElementById('statSetupTotalKelas').innerText = uniqueKelas.length;
-            document.getElementById('statSetupTotalWali').innerText = uniqueWali.length;
         }
 
         function renderSetupTable() {
             const tbody = document.getElementById('setupTableBody');
             const q = document.getElementById('filterSetupSearch').value.trim().toLowerCase();
+            const fTahun = document.getElementById('filterSetupTahun').value;
+            const fSemester = document.getElementById('filterSetupSemester').value;
             const fKelas = document.getElementById('filterSetupKelas').value;
             const fWali = document.getElementById('filterSetupWali').value;
 
             const filtered = setupRecordsList.filter(d => {
                 if (q) {
-                    const hay = `${d.idSantri} ${d.namaSantri || ''} ${d.kelas || ''} ${d.kamar || ''} ${d.waliHalaqoh || ''}`.toLowerCase();
+                    const hay = `${d.idSantri} ${d.namaSantri || ''} ${d.kelas || ''} ${d.kamar || ''} ${d.waliHalaqoh || ''} ${d.thnPelajaran || ''} ${d.semester || ''}`.toLowerCase();
                     if (!hay.includes(q)) return false;
                 }
+                if (fTahun && (d.thnPelajaran || '').trim() !== fTahun) return false;
+                if (fSemester && normalizeSemester(d.semester) !== fSemester) return false;
                 if (fKelas && (d.kelas || '').trim() !== fKelas) return false;
                 if (fWali && (d.waliHalaqoh || '').trim() !== fWali) return false;
                 return true;
             });
+
+            // Kartu statistik otomatis mengikuti hasil filter aktif
+            const filteredKelas = new Set(filtered.map(r => (r.kelas || '').trim()).filter(Boolean));
+            const filteredWali = new Set(filtered.map(r => (r.waliHalaqoh || '').trim()).filter(Boolean));
+            document.getElementById('statSetupTotalSantri').innerText = filtered.length;
+            document.getElementById('statSetupTotalKelas').innerText = filteredKelas.size;
+            document.getElementById('statSetupTotalWali').innerText = filteredWali.size;
 
             if (!filtered.length) {
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center p-10 text-slate-400 italic">${setupRecordsList.length ? 'Tidak ada data yang cocok dengan filter.' : 'Belum ada data ujian tersimpan.'}</td></tr>`;
@@ -923,7 +951,7 @@
                 tr.innerHTML = `
                     <td class="p-4 font-bold text-slate-800 whitespace-nowrap">${d.idSantri}</td>
                     <td class="p-4 font-semibold text-slate-700">${d.namaSantri || '-'}</td>
-                    <td class="p-4 text-xs text-slate-600 whitespace-nowrap">${d.thnPelajaran || '-'} / <b>${d.semester || '-'}</b></td>
+                    <td class="p-4 text-xs text-slate-600 whitespace-nowrap">${d.thnPelajaran || '-'} / <b>${normalizeSemester(d.semester) || '-'}</b></td>
                     <td class="p-4 bg-blue-50/30 text-xs font-semibold text-blue-800 whitespace-nowrap">Juz ${d.batasZiadahJuz || '-'} Pk ${d.batasZiadahPojok || '-'}</td>
                     <td class="p-4 bg-emerald-50/30 text-xs font-bold text-emerald-800 whitespace-nowrap">Juz ${d.juzAwal || '-'} Pk ${d.pojokAwal || '-'}</td>
                     <td class="p-4 bg-orange-50/30 text-xs font-bold text-orange-800 whitespace-nowrap">Juz ${d.juzAkhir || '-'} Pk ${d.pojokAkhir || '-'}</td>
@@ -940,11 +968,10 @@
             });
         }
 
-        ['filterSetupSearch', 'filterSetupKelas', 'filterSetupWali'].forEach(elId => {
+        ['filterSetupSearch', 'filterSetupTahun', 'filterSetupSemester', 'filterSetupKelas', 'filterSetupWali'].forEach(elId => {
             const el = document.getElementById(elId);
             el.addEventListener(elId === 'filterSetupSearch' ? 'input' : 'change', renderSetupTable);
         });
-
         async function loadSetupData() {
             if (!isOnline) return;
             const tbody = document.getElementById('setupTableBody');
@@ -980,7 +1007,7 @@
             document.getElementById('setupIdSantri').value = idSantri;
             document.getElementById('setupNamaSantri').value = d.namaSantri || '';
             document.getElementById('setupThnPelajaran').value = d.thnPelajaran || '';
-            document.getElementById('setupSemester').value = d.semester || 'GENAP';
+            document.getElementById('setupSemester').value = normalizeSemester(d.semester) || 'GASAL';
             document.getElementById('setupKelas').value = d.kelas || '';
             document.getElementById('setupWaliHalaqoh').value = d.waliHalaqoh || '';
             document.getElementById('setupTempat').value = d.tempat || '';
