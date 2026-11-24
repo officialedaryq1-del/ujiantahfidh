@@ -66,133 +66,222 @@
                 </div>
             </div>
 
-            <!-- SECTION 1: DATA UJIAN (SETUP) -->
-            <div id="sectionSetup" class="block">
-                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+           <!-- SECTION 1: DATA UJIAN (SETUP) -->
+            <div id="sectionSetup" class="block space-y-6">
+                <!-- Header & Tombol Cepat -->
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-200 pb-5">
                     <div>
-                        <h2 class="text-xl font-bold text-slate-800">Database Ujian Santri</h2>
-                        <p class="text-sm text-slate-500">Atur target hafalan yang akan diujikan per santri di sini.</p>
+                        <h2 class="text-2xl font-bold text-slate-800">Data Ujian Santri</h2>
+                        <p class="text-sm text-slate-500">Kelola database peserta ujian tahfidh dan target hafalan per santri.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button" id="btnRefreshSetup" class="flex items-center gap-2 px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-xl font-bold text-xs transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+                            Segarkan Data
+                        </button>
+                        <button type="button" id="btnGoToInputSetup" class="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs transition shadow-sm">
+                            <span>+ Tambah Santri</span>
+                        </button>
                     </div>
                 </div>
 
-                <form id="setupForm" class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8 space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Nomor Ujian (ID / NISQ)</label>
-                            <input type="text" id="setupIdSantri" required placeholder="Cth: 23.00864" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none font-bold bg-white">
+                <!-- Navigasi 2 Submenu Data Ujian -->
+                <div class="flex flex-wrap items-center gap-2 bg-slate-100 p-1.5 rounded-2xl w-fit border border-slate-200">
+                    <button type="button" id="btnSubSetupDatabase" class="px-5 py-2.5 rounded-xl font-bold text-xs transition-all bg-emerald-700 text-white shadow-sm flex items-center gap-2">
+                        <span>🗂️ Database</span>
+                        <span id="badgeCountDatabase" class="px-2 py-0.5 rounded-full text-[10px] font-black bg-white/20 text-white">0</span>
+                    </button>
+                    <button type="button" id="btnSubSetupInput" class="px-5 py-2.5 rounded-xl font-bold text-xs transition-all text-slate-600 hover:text-slate-900 flex items-center gap-2">
+                        <span>➕ Input Database</span>
+                    </button>
+                </div>
+
+                <!-- SUBMENU 1: DATABASE -->
+                <div id="panelSetupDatabase" class="space-y-5">
+                    <!-- Kartu Statistik Ringkas -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Total Santri Terdaftar</span>
+                            <div id="statSetupTotalSantri" class="text-2xl font-black text-emerald-900 mt-1">0</div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Nama Santri</label>
-                            <input type="text" id="setupNamaSantri" required placeholder="Nama Lengkap Santri" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none bg-white">
+                        <div class="bg-blue-50 border border-blue-100 rounded-2xl p-4">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700">Jumlah Kelas</span>
+                            <div id="statSetupTotalKelas" class="text-2xl font-black text-blue-900 mt-1">0</div>
+                        </div>
+                        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700">Jumlah Wali Halaqoh</span>
+                            <div id="statSetupTotalWali" class="text-2xl font-black text-amber-900 mt-1">0</div>
                         </div>
                     </div>
 
-                    <!-- Detail Info -->
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 border-b border-slate-200 pb-6">
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Tahun Pelajaran</label>
-                            <input type="text" id="setupThnPelajaran" placeholder="Misal: 2025/2026 M." class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm font-bold bg-white">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Semester</label>
-                            <select id="setupSemester" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm font-bold bg-white">
-                                <option value="GENAP">GENAP</option>
-                                <option value="GANJIL">GANJIL</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Kelas</label>
-                            <input type="text" id="setupKelas" placeholder="Misal: 9C" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm bg-white">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Wali Halaqoh</label>
-                            <input type="text" id="setupWaliHalaqoh" placeholder="Nama Wali Halaqoh" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm bg-white">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Tempat</label>
-                            <input type="text" id="setupTempat" placeholder="Tempat Ujian" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm bg-white">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Majlis</label>
-                            <input type="text" id="setupMajlis" placeholder="Nama Majlis" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm bg-white">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Status</label>
-                            <input type="text" id="setupStatus" placeholder="Status Santri" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm bg-white">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Kamar</label>
-                            <input type="text" id="setupKamar" placeholder="Kamar / Asrama" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm bg-white">
-                        </div>
-                    </div>
-                    
-                    <!-- Target Hafalan -->
-                    <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
-                        <div class="col-span-2 bg-blue-50 p-3 rounded-xl border border-blue-100">
-                            <label class="block text-[10px] font-bold text-blue-800 uppercase mb-2">Batas Ziadah</label>
-                            <div class="flex gap-2">
-                                <input type="number" id="setupBatasZiadahJuz" placeholder="Juz" class="w-full p-2 border border-blue-200 rounded-lg outline-none text-sm bg-white">
-                                <input type="text" id="setupBatasZiadahPojok" placeholder="Pojok" class="w-full p-2 border border-blue-200 rounded-lg outline-none text-sm bg-white">
-                            </div>
-                        </div>
-                        <div class="col-span-2 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                            <label class="block text-[10px] font-bold text-emerald-800 uppercase mb-2">Awal Baca (Materi)</label>
-                            <div class="flex gap-2">
-                                <input type="number" id="setupJuzAwal" required placeholder="Juz" class="w-full p-2 border border-emerald-200 rounded-lg outline-none text-sm font-bold bg-white">
-                                <input type="text" id="setupPojokAwal" required placeholder="Pojok" class="w-full p-2 border border-emerald-200 rounded-lg outline-none text-sm font-bold bg-white">
-                            </div>
-                        </div>
-                        <div class="col-span-2 bg-orange-50 p-3 rounded-xl border border-orange-100">
-                            <label class="block text-[10px] font-bold text-orange-800 uppercase mb-2">Akhir Baca (Materi)</label>
-                            <div class="flex gap-2">
-                                <input type="number" id="setupJuzAkhir" required placeholder="Juz" class="w-full p-2 border border-orange-200 rounded-lg outline-none text-sm font-bold bg-white">
-                                <input type="text" id="setupPojokAkhir" required placeholder="Pojok" class="w-full p-2 border border-orange-200 rounded-lg outline-none text-sm font-bold bg-white">
-                            </div>
-                        </div>
+                    <!-- Filter & Pencarian Database -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <input type="text" id="filterSetupSearch" placeholder="Cari No. Ujian, Nama Santri, Kamar..." class="p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-600 bg-white">
+                        <select id="filterSetupKelas" class="p-2.5 border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-600 bg-white">
+                            <option value="">Semua Kelas</option>
+                        </select>
+                        <select id="filterSetupWali" class="p-2.5 border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-600 bg-white">
+                            <option value="">Semua Wali Halaqoh</option>
+                        </select>
                     </div>
 
-                    <div class="flex flex-col lg:flex-row justify-between items-center pt-4 border-t border-slate-200 gap-4">
-                        <div class="flex flex-col xl:flex-row items-center gap-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 w-full lg:w-auto flex-1">
-                            <div class="flex-1 w-full">
-                                <div class="flex justify-between items-center mb-1 gap-2">
-                                    <span class="text-xs text-emerald-800 font-bold uppercase tracking-wider whitespace-nowrap">Upload Massal (CSV)</span>
-                                    <button type="button" id="btnDownloadTemplate" class="text-[10px] bg-white border border-emerald-300 hover:bg-emerald-200 text-emerald-800 px-3 py-1.5 rounded-lg transition-colors font-bold shadow-sm flex items-center gap-1.5 whitespace-nowrap">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                                        Template CSV
-                                    </button>
-                                </div>
-                                <span class="block text-[10px] text-emerald-600 font-normal mt-1.5 normal-case leading-tight">Format: No. Ujian, Nama, Tahun, Semester, Batas Jz, Batas Pk, Awal Jz, Awal Pk, Akhir Jz, Akhir Pk, Tempat, Majlis, Kelas, Status, Kamar, Wali</span>
-                            </div>
-                            <div class="flex w-full xl:w-auto gap-2 items-center">
-                                <input type="file" id="csvFileInput" accept=".csv" class="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 bg-white border border-emerald-200 rounded-lg p-1 w-full xl:w-48">
-                                <button type="button" id="btnUploadCsv" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm whitespace-nowrap">Upload</button>
-                            </div>
-                        </div>
+                    <!-- Tabel Database -->
+                    <div class="overflow-x-auto border border-slate-200 rounded-2xl shadow-sm custom-scrollbar">
+                        <table class="w-full text-left border-collapse min-w-[1150px]">
+                            <thead class="bg-slate-800 text-white text-[11px] uppercase tracking-wider">
+                                <tr>
+                                    <th class="p-4">No. Ujian</th>
+                                    <th class="p-4">Nama Santri</th>
+                                    <th class="p-4">Thn / Smt</th>
+                                    <th class="p-4 bg-blue-900/40">Batas Ziadah</th>
+                                    <th class="p-4 bg-emerald-900/50">Awal Baca</th>
+                                    <th class="p-4 bg-orange-900/40">Akhir Baca</th>
+                                    <th class="p-4">Keterangan Lain</th>
+                                    <th class="p-4 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="setupTableBody" class="text-sm">
+                                <tr><td colspan="8" class="text-center p-8 text-slate-400 italic">Memuat data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
-                        <button type="submit" id="btnSimpanSetup" class="w-full lg:w-auto bg-slate-900 hover:bg-slate-800 text-white px-8 py-3.5 rounded-xl font-bold transition shadow-lg disabled:opacity-50">
-                            Simpan Data Ujian
+                <!-- SUBMENU 2: INPUT DATABASE -->
+                <div id="panelSetupInput" class="hidden space-y-6">
+                    <!-- Banner Mode Edit (Muncul otomatis saat klik Edit dari tabel) -->
+                    <div id="setupEditBanner" class="hidden bg-blue-50 border border-blue-200 text-blue-900 px-5 py-3.5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div class="text-xs">
+                            <span class="bg-blue-600 text-white font-black px-2 py-0.5 rounded uppercase mr-2">Mode Edit</span>
+                            <span id="setupEditBannerText" class="font-bold">Sedang mengedit data santri</span>
+                        </div>
+                        <button type="button" id="btnCancelEditSetup" class="text-xs bg-white border border-blue-300 hover:bg-blue-100 text-blue-800 px-3.5 py-1.5 rounded-lg font-bold transition">
+                            Batal Edit
                         </button>
                     </div>
-                </form>
 
-                <div class="overflow-x-auto border border-slate-200 rounded-2xl shadow-sm custom-scrollbar">
-                    <table class="w-full text-left border-collapse min-w-[1200px]">
-                        <thead class="bg-slate-100 text-slate-600 text-xs uppercase tracking-wider">
-                            <tr>
-                                <th class="p-4 border-b border-slate-200">No. Ujian</th>
-                                <th class="p-4 border-b border-slate-200">Nama Santri</th>
-                                <th class="p-4 border-b border-slate-200">Thn / Smt</th>
-                                <th class="p-4 border-b border-slate-200 bg-blue-50/50">Batas Ziadah</th>
-                                <th class="p-4 border-b border-slate-200 bg-emerald-50/50">Awal Baca</th>
-                                <th class="p-4 border-b border-slate-200 bg-orange-50/50">Akhir Baca</th>
-                                <th class="p-4 border-b border-slate-200">Keterangan Lain</th>
-                                <th class="p-4 border-b border-slate-200 text-center">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="setupTableBody" class="text-sm">
-                            <tr><td colspan="8" class="text-center p-8 text-slate-400 italic">Memuat data...</td></tr>
-                        </tbody>
-                    </table>
+                    <!-- Kartu 1: Form Input Manual -->
+                    <form id="setupForm" class="bg-slate-50 p-6 md:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-800">Input Data Santri (Manual)</h3>
+                                <p class="text-xs text-slate-500">Isi identitas santri dan batas materi yang akan diujikan.</p>
+                            </div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg">Form Satuan</span>
+                        </div>
+
+                        <!-- Identitas Utama -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Nomor Ujian (ID / NISQ)</label>
+                                <input type="text" id="setupIdSantri" required placeholder="Cth: 23.00864" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none font-bold bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Nama Santri</label>
+                                <input type="text" id="setupNamaSantri" required placeholder="Nama Lengkap Santri" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none bg-white">
+                            </div>
+                        </div>
+
+                        <!-- Detail Akademik & Asrama -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-5 border-y border-slate-200 py-6">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Tahun Pelajaran</label>
+                                <input type="text" id="setupThnPelajaran" placeholder="Misal: 2025/2026 M." class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm font-bold bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Semester</label>
+                                <select id="setupSemester" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm font-bold bg-white">
+                                    <option value="GENAP">GENAP</option>
+                                    <option value="GANJIL">GANJIL</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Kelas</label>
+                                <input type="text" id="setupKelas" placeholder="Misal: 9C" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Wali Halaqoh</label>
+                                <input type="text" id="setupWaliHalaqoh" placeholder="Nama Wali Halaqoh" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Tempat</label>
+                                <input type="text" id="setupTempat" placeholder="Tempat Ujian" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Majlis</label>
+                                <input type="text" id="setupMajlis" placeholder="Nama Majlis" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Status</label>
+                                <input type="text" id="setupStatus" placeholder="Status Santri" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Kamar</label>
+                                <input type="text" id="setupKamar" placeholder="Kamar / Asrama" class="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm bg-white">
+                            </div>
+                        </div>
+
+                        <!-- Target Hafalan -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                <label class="block text-[10px] font-bold text-blue-800 uppercase mb-2">Batas Ziadah</label>
+                                <div class="flex gap-2">
+                                    <input type="number" id="setupBatasZiadahJuz" placeholder="Juz" class="w-full p-2.5 border border-blue-200 rounded-lg outline-none text-sm bg-white">
+                                    <input type="text" id="setupBatasZiadahPojok" placeholder="Pojok" class="w-full p-2.5 border border-blue-200 rounded-lg outline-none text-sm bg-white">
+                                </div>
+                            </div>
+                            <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                                <label class="block text-[10px] font-bold text-emerald-800 uppercase mb-2">Awal Baca (Materi)</label>
+                                <div class="flex gap-2">
+                                    <input type="number" id="setupJuzAwal" required placeholder="Juz" class="w-full p-2.5 border border-emerald-200 rounded-lg outline-none text-sm font-bold bg-white">
+                                    <input type="text" id="setupPojokAwal" required placeholder="Pojok" class="w-full p-2.5 border border-emerald-200 rounded-lg outline-none text-sm font-bold bg-white">
+                                </div>
+                            </div>
+                            <div class="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                                <label class="block text-[10px] font-bold text-orange-800 uppercase mb-2">Akhir Baca (Materi)</label>
+                                <div class="flex gap-2">
+                                    <input type="number" id="setupJuzAkhir" required placeholder="Juz" class="w-full p-2.5 border border-orange-200 rounded-lg outline-none text-sm font-bold bg-white">
+                                    <input type="text" id="setupPojokAkhir" required placeholder="Pojok" class="w-full p-2.5 border border-orange-200 rounded-lg outline-none text-sm font-bold bg-white">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tombol Aksi Form -->
+                        <div class="flex flex-col sm:flex-row justify-end items-center gap-3 pt-2">
+                            <button type="button" id="btnResetSetupForm" class="w-full sm:w-auto px-6 py-3 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-xl font-bold text-sm transition">
+                                Reset Form
+                            </button>
+                            <button type="submit" id="btnSimpanSetup" class="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white px-8 py-3 rounded-xl font-bold text-sm transition shadow-lg disabled:opacity-50">
+                                Simpan Data Ujian
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Kartu 2: Upload Massal CSV (Terpisah & Lega) -->
+                    <div class="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 rounded-2xl border border-emerald-200 shadow-sm space-y-4">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider">Import Massal</span>
+                                    <h3 class="text-base font-bold text-emerald-950">Upload Database Santri (CSV)</h3>
+                                </div>
+                                <p class="text-xs text-emerald-800/80 mt-1">
+                                    Format 16 kolom: <i>No. Ujian, Nama, Tahun, Semester, Batas Jz, Batas Pk, Awal Jz, Awal Pk, Akhir Jz, Akhir Pk, Tempat, Majlis, Kelas, Status, Kamar, Wali</i>
+                                </p>
+                            </div>
+                            <button type="button" id="btnDownloadTemplate" class="text-xs bg-white border border-emerald-300 hover:bg-emerald-100 text-emerald-800 px-4 py-2.5 rounded-xl transition font-bold shadow-sm flex items-center gap-2 whitespace-nowrap">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                Download Template CSV
+                            </button>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row gap-3 items-center bg-white p-3.5 rounded-xl border border-emerald-100">
+                            <input type="file" id="csvFileInput" accept=".csv" class="text-xs file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 w-full cursor-pointer">
+                            <button type="button" id="btnUploadCsv" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg text-xs font-bold transition shadow-sm whitespace-nowrap">
+                                Upload ke Supabase
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -737,13 +826,129 @@
         });
 
         // ==========================================
-        // SECTION 1: DATA UJIAN (SETUP)
+        // SECTION 1: DATA UJIAN (SETUP & SUBMENU)
         // ==========================================
+        let setupRecordsList = [];
+        let isEditingSetup = false;
+
+        const btnSubSetupDatabase = document.getElementById('btnSubSetupDatabase');
+        const btnSubSetupInput = document.getElementById('btnSubSetupInput');
+        const panelSetupDatabase = document.getElementById('panelSetupDatabase');
+        const panelSetupInput = document.getElementById('panelSetupInput');
+        const badgeCountDatabase = document.getElementById('badgeCountDatabase');
+
+        function switchSetupSubmenu(mode) {
+            if (mode === 'database') {
+                panelSetupDatabase.classList.remove('hidden');
+                panelSetupInput.classList.add('hidden');
+                btnSubSetupDatabase.className = "px-5 py-2.5 rounded-xl font-bold text-xs transition-all bg-emerald-700 text-white shadow-sm flex items-center gap-2";
+                badgeCountDatabase.className = "px-2 py-0.5 rounded-full text-[10px] font-black bg-white/20 text-white";
+                btnSubSetupInput.className = "px-5 py-2.5 rounded-xl font-bold text-xs transition-all text-slate-600 hover:text-slate-900 flex items-center gap-2";
+            } else {
+                panelSetupDatabase.classList.add('hidden');
+                panelSetupInput.classList.remove('hidden');
+                btnSubSetupInput.className = "px-5 py-2.5 rounded-xl font-bold text-xs transition-all bg-emerald-700 text-white shadow-sm flex items-center gap-2";
+                btnSubSetupDatabase.className = "px-5 py-2.5 rounded-xl font-bold text-xs transition-all text-slate-600 hover:text-slate-900 flex items-center gap-2";
+                badgeCountDatabase.className = "px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-200 text-slate-700";
+            }
+        }
+
+        function resetSetupFormState() {
+            document.getElementById('setupForm').reset();
+            isEditingSetup = false;
+            document.getElementById('setupEditBanner').classList.add('hidden');
+            document.getElementById('btnSimpanSetup').innerText = "Simpan Data Ujian";
+        }
+
+        btnSubSetupDatabase.addEventListener('click', () => switchSetupSubmenu('database'));
+        btnSubSetupInput.addEventListener('click', () => switchSetupSubmenu('input'));
+        document.getElementById('btnGoToInputSetup').addEventListener('click', () => {
+            resetSetupFormState();
+            switchSetupSubmenu('input');
+        });
+        document.getElementById('btnRefreshSetup').addEventListener('click', loadSetupData);
+        document.getElementById('btnResetSetupForm').addEventListener('click', resetSetupFormState);
+        document.getElementById('btnCancelEditSetup').addEventListener('click', () => {
+            resetSetupFormState();
+            switchSetupSubmenu('database');
+        });
+
+        function populateSetupFilters() {
+            const selKelas = document.getElementById('filterSetupKelas');
+            const selWali = document.getElementById('filterSetupWali');
+            const prevK = selKelas.value;
+            const prevW = selWali.value;
+
+            const uniqueKelas = Array.from(new Set(setupRecordsList.map(r => (r.kelas || '').trim()).filter(Boolean))).sort();
+            const uniqueWali = Array.from(new Set(setupRecordsList.map(r => (r.waliHalaqoh || '').trim()).filter(Boolean))).sort();
+
+            selKelas.innerHTML = `<option value="">Semua Kelas</option>` + uniqueKelas.map(k => `<option value="${k.replace(/"/g, '&quot;')}">${k}</option>`).join('');
+            selWali.innerHTML = `<option value="">Semua Wali Halaqoh</option>` + uniqueWali.map(w => `<option value="${w.replace(/"/g, '&quot;')}">${w}</option>`).join('');
+
+            selKelas.value = prevK;
+            selWali.value = prevW;
+
+            document.getElementById('badgeCountDatabase').innerText = setupRecordsList.length;
+            document.getElementById('statSetupTotalSantri').innerText = setupRecordsList.length;
+            document.getElementById('statSetupTotalKelas').innerText = uniqueKelas.length;
+            document.getElementById('statSetupTotalWali').innerText = uniqueWali.length;
+        }
+
+        function renderSetupTable() {
+            const tbody = document.getElementById('setupTableBody');
+            const q = document.getElementById('filterSetupSearch').value.trim().toLowerCase();
+            const fKelas = document.getElementById('filterSetupKelas').value;
+            const fWali = document.getElementById('filterSetupWali').value;
+
+            const filtered = setupRecordsList.filter(d => {
+                if (q) {
+                    const hay = `${d.idSantri} ${d.namaSantri || ''} ${d.kelas || ''} ${d.kamar || ''} ${d.waliHalaqoh || ''}`.toLowerCase();
+                    if (!hay.includes(q)) return false;
+                }
+                if (fKelas && (d.kelas || '').trim() !== fKelas) return false;
+                if (fWali && (d.waliHalaqoh || '').trim() !== fWali) return false;
+                return true;
+            });
+
+            if (!filtered.length) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center p-10 text-slate-400 italic">${setupRecordsList.length ? 'Tidak ada data yang cocok dengan filter.' : 'Belum ada data ujian tersimpan.'}</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            filtered.forEach(d => {
+                const safeId = d.idSantri.replace(/'/g, "\\'");
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-100 hover:bg-slate-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-4 font-bold text-slate-800 whitespace-nowrap">${d.idSantri}</td>
+                    <td class="p-4 font-semibold text-slate-700">${d.namaSantri || '-'}</td>
+                    <td class="p-4 text-xs text-slate-600 whitespace-nowrap">${d.thnPelajaran || '-'} / <b>${d.semester || '-'}</b></td>
+                    <td class="p-4 bg-blue-50/30 text-xs font-semibold text-blue-800 whitespace-nowrap">Juz ${d.batasZiadahJuz || '-'} Pk ${d.batasZiadahPojok || '-'}</td>
+                    <td class="p-4 bg-emerald-50/30 text-xs font-bold text-emerald-800 whitespace-nowrap">Juz ${d.juzAwal || '-'} Pk ${d.pojokAwal || '-'}</td>
+                    <td class="p-4 bg-orange-50/30 text-xs font-bold text-orange-800 whitespace-nowrap">Juz ${d.juzAkhir || '-'} Pk ${d.pojokAkhir || '-'}</td>
+                    <td class="p-4 text-xs text-slate-500">
+                        <span class="font-semibold text-slate-700">Kls ${d.kelas || '-'}</span> • Wali: ${d.waliHalaqoh || '-'}<br>
+                        <span class="text-[11px]">${d.tempat || '-'} | Majlis: ${d.majlis || '-'} | Kamar: ${d.kamar || '-'}</span>
+                    </td>
+                    <td class="p-4 text-center whitespace-nowrap space-x-1">
+                        <button type="button" onclick="window.editSetup('${safeId}')" class="bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1.5 rounded-lg text-xs font-bold transition">Edit</button>
+                        <button type="button" onclick="window.deleteSetup('${safeId}')" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg text-xs font-bold transition">Hapus</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        ['filterSetupSearch', 'filterSetupKelas', 'filterSetupWali'].forEach(elId => {
+            const el = document.getElementById(elId);
+            el.addEventListener(elId === 'filterSetupSearch' ? 'input' : 'change', renderSetupTable);
+        });
+
         async function loadSetupData() {
             if (!isOnline) return;
             const tbody = document.getElementById('setupTableBody');
             tbody.innerHTML = `<tr><td colspan="8" class="text-center p-8 text-slate-400 italic animate-pulse">Memuat Data Ujian dari Supabase...</td></tr>`;
-
             try {
                 const { data, error } = await supabaseClient
                     .from('tahfidh_setup')
@@ -751,39 +956,17 @@
                     .order('id_santri', { ascending: true });
 
                 if (error) throw error;
-
                 loadedSetupMap = {};
-                if (!data || data.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="8" class="text-center p-8 text-slate-400 italic">Belum ada data ujian tersimpan.</td></tr>`;
-                    return;
-                }
+                setupRecordsList = [];
 
-                tbody.innerHTML = '';
-                data.forEach(row => {
+                (data || []).forEach(row => {
                     const d = row.data || {};
                     loadedSetupMap[row.id_santri] = d;
-                    const safeId = row.id_santri.replace(/'/g, "\\'");
-
-                    const tr = document.createElement('tr');
-                    tr.className = "border-b border-slate-100 hover:bg-slate-50 transition-colors";
-                    tr.innerHTML = `
-                        <td class="p-4 font-bold text-slate-800 whitespace-nowrap">${row.id_santri}</td>
-                        <td class="p-4 font-semibold text-slate-700">${d.namaSantri || '-'}</td>
-                        <td class="p-4 text-xs text-slate-600 whitespace-nowrap">${d.thnPelajaran || '-'} / <b>${d.semester || '-'}</b></td>
-                        <td class="p-4 bg-blue-50/30 text-xs font-semibold text-blue-800 whitespace-nowrap">Juz ${d.batasZiadahJuz || '-'} Pk ${d.batasZiadahPojok || '-'}</td>
-                        <td class="p-4 bg-emerald-50/30 text-xs font-bold text-emerald-800 whitespace-nowrap">Juz ${d.juzAwal || '-'} Pk ${d.pojokAwal || '-'}</td>
-                        <td class="p-4 bg-orange-50/30 text-xs font-bold text-orange-800 whitespace-nowrap">Juz ${d.juzAkhir || '-'} Pk ${d.pojokAkhir || '-'}</td>
-                        <td class="p-4 text-xs text-slate-500">
-                            <span class="font-semibold text-slate-700">Kls ${d.kelas || '-'}</span> • Wali: ${d.waliHalaqoh || '-'}<br>
-                            <span class="text-[11px]">${d.tempat || '-'} | Majlis: ${d.majlis || '-'} | Kamar: ${d.kamar || '-'}</span>
-                        </td>
-                        <td class="p-4 text-center whitespace-nowrap space-x-1">
-                            <button type="button" onclick="window.editSetup('${safeId}')" class="bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1.5 rounded-lg text-xs font-bold transition">Edit</button>
-                            <button type="button" onclick="window.deleteSetup('${safeId}')" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg text-xs font-bold transition">Hapus</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
+                    setupRecordsList.push({ ...d, idSantri: row.id_santri });
                 });
+
+                populateSetupFilters();
+                renderSetupTable();
             } catch (err) {
                 console.error(err);
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center p-8 text-red-500 font-semibold">Error: ${err.message}</td></tr>`;
@@ -793,6 +976,7 @@
         window.editSetup = function(idSantri) {
             const d = loadedSetupMap[idSantri];
             if (!d) return;
+            isEditingSetup = true;
             document.getElementById('setupIdSantri').value = idSantri;
             document.getElementById('setupNamaSantri').value = d.namaSantri || '';
             document.getElementById('setupThnPelajaran').value = d.thnPelajaran || '';
@@ -809,8 +993,14 @@
             document.getElementById('setupPojokAwal').value = d.pojokAwal || '';
             document.getElementById('setupJuzAkhir').value = d.juzAkhir || '';
             document.getElementById('setupPojokAkhir').value = d.pojokAkhir || '';
-            document.getElementById('setupForm').scrollIntoView({ behavior: 'smooth' });
-            showToast(`Data ${d.namaSantri || idSantri} dimuat ke form untuk diedit.`, "bg-blue-600");
+
+            document.getElementById('setupEditBannerText').innerText = `Sedang mengedit: ${d.namaSantri || idSantri} (${idSantri})`;
+            document.getElementById('setupEditBanner').classList.remove('hidden');
+            document.getElementById('btnSimpanSetup').innerText = "Perbarui Data Ujian";
+
+            switchSetupSubmenu('input');
+            document.getElementById('sectionSetup').scrollIntoView({ behavior: 'smooth' });
+            showToast(`Data ${d.namaSantri || idSantri} dimuat untuk diedit.`, "bg-blue-600");
         };
 
         window.deleteSetup = async function(idSantri) {
@@ -829,11 +1019,11 @@
         document.getElementById('setupForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!isOnline) return showToast("Koneksi Supabase belum aktif.", "bg-red-600");
-
             const btn = document.getElementById('btnSimpanSetup');
             btn.disabled = true;
             btn.innerText = "Menyimpan...";
 
+            const wasEditing = isEditingSetup;
             const idSantri = document.getElementById('setupIdSantri').value.trim();
             const payloadData = {
                 idSantri,
@@ -858,16 +1048,17 @@
                 const { error } = await supabaseClient
                     .from('tahfidh_setup')
                     .upsert({ id_santri: idSantri, data: payloadData, updated_at: new Date().toISOString() }, { onConflict: 'id_santri' });
-
                 if (error) throw error;
-                showToast("Data Ujian berhasil disimpan ke Supabase!", "bg-emerald-600");
-                document.getElementById('setupForm').reset();
-                loadSetupData();
+
+                showToast(wasEditing ? "Data Ujian berhasil diperbarui!" : "Data Ujian berhasil disimpan ke Supabase!", "bg-emerald-600");
+                resetSetupFormState();
+                await loadSetupData();
+                if (wasEditing) switchSetupSubmenu('database');
             } catch (err) {
                 showToast("Gagal menyimpan: " + err.message, "bg-red-600");
+                btn.innerText = wasEditing ? "Perbarui Data Ujian" : "Simpan Data Ujian";
             } finally {
                 btn.disabled = false;
-                btn.innerText = "Simpan Data Ujian";
             }
         });
 
@@ -910,12 +1101,9 @@
 
                 const delimiter = lines[0].includes(";") ? ";" : ",";
                 const records = [];
-
                 for (let i = 1; i < lines.length; i++) {
                     const cols = lines[i].split(delimiter).map(c => c.replace(/^"|"$/g, '').trim());
                     if (!cols[0]) continue;
-
-                    // Mendukung format 16 kolom (dengan Tahun & Semester) maupun 14 kolom lama
                     if (cols.length >= 16) {
                         records.push({
                             id_santri: cols[0],
@@ -964,7 +1152,6 @@
                         });
                     }
                 }
-
                 if (!records.length) return showToast("Tidak ada baris valid untuk diunggah.", "bg-orange-600");
 
                 try {
@@ -972,17 +1159,16 @@
                         .from('tahfidh_setup')
                         .upsert(records, { onConflict: 'id_santri' });
                     if (error) throw error;
-
                     showToast(`Berhasil mengimpor ${records.length} data santri ke Supabase!`, "bg-emerald-600");
                     fileInput.value = '';
-                    loadSetupData();
+                    await loadSetupData();
+                    switchSetupSubmenu('database');
                 } catch (err) {
                     showToast("Gagal upload CSV: " + err.message, "bg-red-600");
                 }
             };
             reader.readAsText(file);
         });
-
         // ==========================================
         // SECTION 2: INPUT NILAI & MERGE LOGIC
         // ==========================================
