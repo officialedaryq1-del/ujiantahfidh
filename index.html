@@ -265,27 +265,27 @@
                         </div>
                     </form>
 
-                    <!-- Kartu 2: Upload Massal CSV (Terpisah & Lega) -->
+                    <!-- Kartu 2: Upload Massal Excel (Terpisah & Lega) -->
                     <div class="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 rounded-2xl border border-emerald-200 shadow-sm space-y-4">
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <div>
                                 <div class="flex items-center gap-2">
                                     <span class="bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider">Import Massal</span>
-                                    <h3 class="text-base font-bold text-emerald-950">Upload Database Santri (CSV)</h3>
+                                    <h3 class="text-base font-bold text-emerald-950">Upload Database Santri (Excel)</h3>
                                 </div>
                                 <p class="text-xs text-emerald-800/80 mt-1">
-                                    Format 16 kolom: <i>No. Ujian, Nama, Tahun, Semester, Batas Jz, Batas Pk, Awal Jz, Awal Pk, Akhir Jz, Akhir Pk, Tempat, Majlis, Kelas, Status, Kamar, Wali</i>
+                                    Format 16 kolom (.xlsx / .xls): <i>No. Ujian, Nama, Tahun, Semester, Batas Jz, Batas Pk, Awal Jz, Awal Pk, Akhir Jz, Akhir Pk, Tempat, Majlis, Kelas, Status, Kamar, Wali</i>
                                 </p>
                             </div>
                             <button type="button" id="btnDownloadTemplate" class="text-xs bg-white border border-emerald-300 hover:bg-emerald-100 text-emerald-800 px-4 py-2.5 rounded-xl transition font-bold shadow-sm flex items-center gap-2 whitespace-nowrap">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                                Download Template CSV
+                                Download Template Excel (.xlsx)
                             </button>
                         </div>
 
                         <div class="flex flex-col sm:flex-row gap-3 items-center bg-white p-3.5 rounded-xl border border-emerald-100">
-                            <input type="file" id="csvFileInput" accept=".csv" class="text-xs file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 w-full cursor-pointer">
-                            <button type="button" id="btnUploadCsv" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg text-xs font-bold transition shadow-sm whitespace-nowrap">
+                            <input type="file" id="excelSetupFileInput" accept=".xlsx,.xls" class="text-xs file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 w-full cursor-pointer">
+                            <button type="button" id="btnUploadSetupExcel" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg text-xs font-bold transition shadow-sm whitespace-nowrap">
                                 Upload ke Supabase
                             </button>
                         </div>
@@ -1089,8 +1089,10 @@
             }
         });
 
-        // Download Template CSV Data Ujian
+        // Download Template Excel (.xlsx) Data Ujian
         document.getElementById('btnDownloadTemplate').addEventListener('click', () => {
+            if (typeof XLSX === 'undefined') return showToast("Library Excel belum siap.", "bg-red-600");
+
             const headers = [
                 "No. Ujian", "Nama Santri", "Tahun Pelajaran", "Semester",
                 "Batas Ziadah Juz", "Batas Ziadah Pojok",
@@ -1099,102 +1101,136 @@
                 "Tempat", "Majlis", "Kelas", "Status", "Kamar", "Wali Halaqoh"
             ];
             const sample = [
-                "23.00864", "Faqih Zain Nur Ibrahim Al Asrori", "2025/2026 M.", "GENAP",
-                "15", "3", "4", "1", "12", "20",
+                "23.00864", "Faqih Zain Nur Ibrahim Al Asrori", "2025/2026 M.", "GASAL",
+                15, 3, 4, 1, 12, 20,
                 "Aula Utama", "Majlis 1", "9C", "Aktif", "Al-Fatih 2", "Ust. Abdul Ghofur, S.Pd."
             ];
-            const csvContent = "\uFEFF" + headers.join(",") + "\n" + sample.map(v => `"${v}"`).join(",");
-            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "Template_Upload_Data_Ujian.csv";
-            a.click();
-            URL.revokeObjectURL(url);
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+
+            // Pastikan No. Ujian tersimpan sebagai teks agar format titik/nol depan tidak rusak di Excel
+            if (ws['A2']) ws['A2'].t = 's';
+
+            // Atur lebar kolom agar rapi saat dibuka di Microsoft Excel
+            ws['!cols'] = [
+                { wch: 15 }, { wch: 32 }, { wch: 16 }, { wch: 12 },
+                { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 16 },
+                { wch: 15 }, { wch: 16 }, { wch: 16 }, { wch: 14 },
+                { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 26 }
+            ];
+
+            XLSX.utils.book_append_sheet(wb, ws, "Data Ujian");
+            XLSX.writeFile(wb, "Template_Upload_Data_Ujian.xlsx");
+            showToast("Template Excel (.xlsx) berhasil diunduh!", "bg-emerald-600");
         });
 
-        // Upload CSV Data Ujian
-        document.getElementById('btnUploadCsv').addEventListener('click', async () => {
+        // Upload Excel (.xlsx / .xls) Data Ujian ke Supabase
+        document.getElementById('btnUploadSetupExcel').addEventListener('click', () => {
             if (!isOnline) return showToast("Koneksi Supabase belum aktif.", "bg-red-600");
-            const fileInput = document.getElementById('csvFileInput');
+            if (typeof XLSX === 'undefined') return showToast("Library Excel belum siap.", "bg-red-600");
+
+            const fileInput = document.getElementById('excelSetupFileInput');
             const file = fileInput.files[0];
-            if (!file) return showToast("Pilih file CSV terlebih dahulu!", "bg-orange-600");
+            if (!file) return showToast("Pilih file Excel (.xlsx / .xls) terlebih dahulu!", "bg-orange-600");
+
+            const btn = document.getElementById('btnUploadSetupExcel');
+            btn.disabled = true;
+            btn.innerText = "Mengunggah...";
 
             const reader = new FileReader();
             reader.onload = async (e) => {
-                const text = e.target.result;
-                const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
-                if (lines.length < 2) return showToast("File CSV kosong atau hanya berisi header.", "bg-red-600");
-
-                const delimiter = lines[0].includes(";") ? ";" : ",";
-                const records = [];
-                for (let i = 1; i < lines.length; i++) {
-                    const cols = lines[i].split(delimiter).map(c => c.replace(/^"|"$/g, '').trim());
-                    if (!cols[0]) continue;
-                    if (cols.length >= 16) {
-                        records.push({
-                            id_santri: cols[0],
-                            updated_at: new Date().toISOString(),
-                            data: {
-                                idSantri: cols[0],
-                                namaSantri: cols[1] || '',
-                                thnPelajaran: cols[2] || '2025/2026 M.',
-                                semester: cols[3] || 'GENAP',
-                                batasZiadahJuz: cols[4] || '',
-                                batasZiadahPojok: cols[5] || '',
-                                juzAwal: parseInt(cols[6]) || 0,
-                                pojokAwal: cols[7] || '',
-                                juzAkhir: parseInt(cols[8]) || 0,
-                                pojokAkhir: cols[9] || '',
-                                tempat: cols[10] || '',
-                                majlis: cols[11] || '',
-                                kelas: cols[12] || '',
-                                status: cols[13] || '',
-                                kamar: cols[14] || '',
-                                waliHalaqoh: cols[15] || ''
-                            }
-                        });
-                    } else {
-                        records.push({
-                            id_santri: cols[0],
-                            updated_at: new Date().toISOString(),
-                            data: {
-                                idSantri: cols[0],
-                                namaSantri: cols[1] || '',
-                                thnPelajaran: '2025/2026 M.',
-                                semester: 'GENAP',
-                                batasZiadahJuz: cols[2] || '',
-                                batasZiadahPojok: cols[3] || '',
-                                juzAwal: parseInt(cols[4]) || 0,
-                                pojokAwal: cols[5] || '',
-                                juzAkhir: parseInt(cols[6]) || 0,
-                                pojokAkhir: cols[7] || '',
-                                tempat: cols[8] || '',
-                                majlis: cols[9] || '',
-                                kelas: cols[10] || '',
-                                status: cols[11] || '',
-                                kamar: cols[12] || '',
-                                waliHalaqoh: cols[13] || ''
-                            }
-                        });
-                    }
-                }
-                if (!records.length) return showToast("Tidak ada baris valid untuk diunggah.", "bg-orange-600");
-
                 try {
+                    const data = new Uint8Array(e.target.result);
+                    const wb = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = wb.SheetNames[0];
+                    const ws = wb.Sheets[firstSheetName];
+                    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+                    if (rows.length < 2) {
+                        return showToast("File Excel kosong atau hanya berisi baris header.", "bg-red-600");
+                    }
+
+                    // Gunakan Map agar tidak error jika ada No. Ujian ganda di dalam 1 file Excel
+                    const uniqueRecordsMap = new Map();
+                    const headerCount = rows[0].filter(h => String(h ?? '').trim() !== '').length;
+
+                    for (let i = 1; i < rows.length; i++) {
+                        const cols = rows[i].map(c => String(c ?? '').trim());
+                        const idSantri = cols[0];
+                        if (!idSantri) continue;
+
+                        if (headerCount >= 16 || cols.length >= 16) {
+                            uniqueRecordsMap.set(idSantri, {
+                                id_santri: idSantri,
+                                updated_at: new Date().toISOString(),
+                                data: {
+                                    idSantri,
+                                    namaSantri: cols[1] || '',
+                                    thnPelajaran: cols[2] || '2025/2026 M.',
+                                    semester: normalizeSemester(cols[3]) || 'GASAL',
+                                    batasZiadahJuz: cols[4] || '',
+                                    batasZiadahPojok: cols[5] || '',
+                                    juzAwal: parseInt(cols[6]) || 0,
+                                    pojokAwal: cols[7] || '',
+                                    juzAkhir: parseInt(cols[8]) || 0,
+                                    pojokAkhir: cols[9] || '',
+                                    tempat: cols[10] || '',
+                                    majlis: cols[11] || '',
+                                    kelas: cols[12] || '',
+                                    status: cols[13] || '',
+                                    kamar: cols[14] || '',
+                                    waliHalaqoh: cols[15] || ''
+                                }
+                            });
+                        } else {
+                            uniqueRecordsMap.set(idSantri, {
+                                id_santri: idSantri,
+                                updated_at: new Date().toISOString(),
+                                data: {
+                                    idSantri,
+                                    namaSantri: cols[1] || '',
+                                    thnPelajaran: '2025/2026 M.',
+                                    semester: 'GASAL',
+                                    batasZiadahJuz: cols[2] || '',
+                                    batasZiadahPojok: cols[3] || '',
+                                    juzAwal: parseInt(cols[4]) || 0,
+                                    pojokAwal: cols[5] || '',
+                                    juzAkhir: parseInt(cols[6]) || 0,
+                                    pojokAkhir: cols[7] || '',
+                                    tempat: cols[8] || '',
+                                    majlis: cols[9] || '',
+                                    kelas: cols[10] || '',
+                                    status: cols[11] || '',
+                                    kamar: cols[12] || '',
+                                    waliHalaqoh: cols[13] || ''
+                                }
+                            });
+                        }
+                    }
+
+                    const records = Array.from(uniqueRecordsMap.values());
+                    if (!records.length) {
+                        return showToast("Tidak ada baris valid untuk diunggah.", "bg-orange-600");
+                    }
+
                     const { error } = await supabaseClient
                         .from('tahfidh_setup')
                         .upsert(records, { onConflict: 'id_santri' });
                     if (error) throw error;
-                    showToast(`Berhasil mengimpor ${records.length} data santri ke Supabase!`, "bg-emerald-600");
+
+                    showToast(`Berhasil mengimpor ${records.length} data santri dari Excel ke Supabase!`, "bg-emerald-600");
                     fileInput.value = '';
                     await loadSetupData();
                     switchSetupSubmenu('database');
                 } catch (err) {
-                    showToast("Gagal upload CSV: " + err.message, "bg-red-600");
+                    showToast("Gagal upload Excel: " + err.message, "bg-red-600");
+                } finally {
+                    btn.disabled = false;
+                    btn.innerText = "Upload ke Supabase";
                 }
             };
-            reader.readAsText(file);
+            reader.readAsArrayBuffer(file);
         });
         // ==========================================
         // SECTION 2: INPUT NILAI & MERGE LOGIC
