@@ -2407,7 +2407,27 @@
                         avgTahfidh: h.tahfidhCount > 0 ? Number((h.tahfidhSum / h.tahfidhCount).toFixed(1)) : null,
                         avgYanbua: h.yanbuaCount > 0 ? Number((h.yanbuaSum / h.yanbuaCount).toFixed(1)) : null
                     }))
-                    .sort((a, b) => a.waliHalaqoh.localeCompare(b.waliHalaqoh));
+                    .sort((a, b) => {
+                    const getNum = (val) => {
+                        const m = String(val || '').match(/\d+/);
+                        return m ? parseInt(m[0], 10) : Infinity;
+                    };
+                
+                    // 1. Urutkan Kelas (7 -> 8 -> 9, data kosong/'-' di paling bawah)
+                    const kelasDiff = getNum(a.kelasList) - getNum(b.kelasList);
+                    if (kelasDiff !== 0) return kelasDiff;
+                    const kelasStrDiff = a.kelasList.localeCompare(b.kelasList, undefined, { numeric: true });
+                    if (kelasStrDiff !== 0) return kelasStrDiff;
+                
+                    // 2. Lanjut urutkan Kamar (angka terendah -> teratas)
+                    const kamarDiff = getNum(a.kamarList) - getNum(b.kamarList);
+                    if (kamarDiff !== 0) return kamarDiff;
+                    const kamarStrDiff = a.kamarList.localeCompare(b.kamarList, undefined, { numeric: true });
+                    if (kamarStrDiff !== 0) return kamarStrDiff;
+                
+                    // 3. Jika kelas & kamar sama, urutkan nama Wali Halaqoh A-Z
+                    return a.waliHalaqoh.localeCompare(b.waliHalaqoh);
+                });
 
                 const totalSantri = rekapCombinedRows.length;
                 const totalLulus = rekapCombinedRows.filter(r => r.kelulusan === 'Lulus').length;
